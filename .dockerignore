@@ -1,0 +1,10 @@
+.venv
+**/node_modules
+backend/static
+backend/data
+paTrack_data
+.env
+**/__pycache__
+backend/tests
+pytest.ini
+.pytest_cache

@@ -198,6 +198,69 @@ def export():
     return jsonify(families=out)
 
 
+# ---------- For weHub: merging families made separately before weHub ----------
+
+@bp.post('/hub/merge')
+def merge():
+    """{into: local family id, families: [local family ids]}: move everything of those families into `into`.
+    Called by weHub's import when two people had made separate families before. A backup of the database is made
+    first; nothing is deleted except the emptied families (checked: if any row still belongs to one, nothing is done)."""
+    presented = request.headers.get('Authorization', '')[7:].strip()
+    if not KEY or not hmac.compare_digest(KEY, presented):
+        return jsonify(error='Unknown key'), 401
+    d = request.get_json(silent=True) or {}
+    try:
+        into = int(d.get('into'))
+        sources = sorted({int(x) for x in d.get('families') or []} - {into})
+    except (TypeError, ValueError):
+        return jsonify(error='Invalid request'), 400
+    if not sources:
+        return jsonify(error='Nothing to merge'), 400
+    with db.transaction() as conn:
+        found = {r['id']: r for r in conn.execute(
+            f"SELECT id, hub_id FROM families WHERE id IN ({','.join('?' * (len(sources) + 1))})", (into, *sources))}
+        if into not in found or any(s not in found for s in sources):
+            return jsonify(error='Family not found'), 404
+        if any(found[s]['hub_id'] for s in sources):
+            return jsonify(error='A family linked to weHub cannot be merged into another'), 409
+    import backup
+    backup.create_backup('pre-merge')
+    report = {}
+    try:
+        with db.transaction() as conn:
+            for src in sources:
+                merge_family(conn, src, into, report)
+            bump(conn, into)
+    except RuntimeError as e:
+        print(f'[hub] merge cancelled: {e}', flush=True)
+        return jsonify(error=str(e)), 409
+    print(f'[hub] merged families {sources} into {into}: {report}', flush=True)
+    return jsonify(merged=sources, into=into, report=report)
+
+
+def merge_family(conn, src, dst, report):
+    """Move one family into another inside the caller's transaction."""
+    merge_data(conn, src, dst, report)
+    # Members: everyone of both families stays (a role already held in the destination wins)
+    for m in conn.execute('SELECT user_id, role FROM members WHERE family_id = ?', (src,)).fetchall():
+        conn.execute('INSERT OR IGNORE INTO members (family_id, user_id, role) VALUES (?,?,?)', (dst, m['user_id'], m['role']))
+    conn.execute('DELETE FROM members WHERE family_id = ?', (src,))
+    conn.execute("DELETE FROM tokens WHERE family_id = ?", (src,))  # pending invitations of the old family
+    # Safety net: no table may still hold rows of the old family, otherwise deleting it would cascade
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'families'")]
+    left = [t for t in tables if 'family_id' in {c[1] for c in conn.execute(f'PRAGMA table_info({t})')}
+            and conn.execute(f'SELECT 1 FROM {t} WHERE family_id = ? LIMIT 1', (src,)).fetchone()]
+    if left:
+        raise RuntimeError(f'family {src} still has rows in {left}: merge cancelled')
+    conn.execute('DELETE FROM families WHERE id = ?', (src,))
+    report['families'] = report.get('families', 0) + 1
+
+
+def _count(report, key, n):
+    if n:
+        report[key] = report.get(key, 0) + n
+
+
 # ======================================================================
 # This app's people: everyone documents can be about (members and people without an account)
 # ======================================================================
@@ -255,3 +318,33 @@ def export_people(conn, family_id):
 def on_member_removed(conn, family_id, user_id):
     conn.execute('UPDATE people SET user_id = NULL WHERE family_id = ? AND user_id = ?', (family_id, user_id))
     conn.execute('DELETE FROM api_tokens WHERE family_id = ? AND user_id = ?', (family_id, user_id))
+
+
+def merge_data(conn, src, dst, report):
+    """paTrack: the same person (member or same name) becomes one; documents and the import queue move. A document
+    whose identical file is already in the destination goes to the trash (recoverable for 30 days)."""
+    for p in conn.execute('SELECT * FROM people WHERE family_id = ?', (src,)).fetchall():
+        t = None
+        if p['user_id']:
+            t = conn.execute('SELECT * FROM people WHERE family_id = ? AND user_id = ?', (dst, p['user_id'])).fetchone()
+        if not t:
+            t = conn.execute('SELECT * FROM people WHERE family_id = ? AND name = ? COLLATE NOCASE AND (user_id IS NULL OR user_id IS ?)',
+                             (dst, p['name'], p['user_id'])).fetchone()
+        if t:
+            conn.execute('UPDATE documents SET person_id = ? WHERE person_id = ?', (t['id'], p['id']))
+            if p['birth_date'] and not t['birth_date']:
+                conn.execute('UPDATE people SET birth_date = ? WHERE id = ?', (p['birth_date'], t['id']))
+            if p['user_id'] and not t['user_id']:
+                conn.execute('DELETE FROM people WHERE id = ?', (p['id'],))
+                conn.execute('UPDATE people SET user_id = ? WHERE id = ?', (p['user_id'], t['id']))
+            else:
+                conn.execute('DELETE FROM people WHERE id = ?', (p['id'],))
+            _count(report, 'people_merged', 1)
+        else:
+            conn.execute('UPDATE people SET family_id = ? WHERE id = ?', (dst, p['id']))
+    dup = conn.execute('''UPDATE documents SET deleted_at = datetime('now') WHERE family_id = ? AND deleted_at IS NULL
+                          AND sha256 IN (SELECT sha256 FROM documents WHERE family_id = ? AND deleted_at IS NULL)''', (src, dst)).rowcount
+    _count(report, 'duplicates_to_trash', dup)
+    _count(report, 'documents', conn.execute('UPDATE documents SET family_id = ? WHERE family_id = ?', (dst, src)).rowcount)
+    conn.execute('UPDATE imports SET family_id = ? WHERE family_id = ?', (dst, src))
+    conn.execute('UPDATE api_tokens SET family_id = ? WHERE family_id = ?', (dst, src))

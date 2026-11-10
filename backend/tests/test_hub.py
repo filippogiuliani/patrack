@@ -150,3 +150,33 @@ def test_export_for_the_import(client, wehub, monkeypatch):
     people = {p['name']: p for p in f['people']}
     assert people['Fil']['member_email'] == 'fil@example.com' and people['Luca']['member_email'] is None
     assert people['Luca']['birth_date'] == '2025-01-10'
+
+
+def merge(c, into, families, key=KEY):
+    return c.post('/api/hub/merge', json={'into': into, 'families': families}, headers={'Authorization': 'Bearer ' + key})
+
+
+def test_merge_two_families_made_separately(client, wehub, monkeypatch):
+    from conftest import Family
+    monkeypatch.setattr(hub, 'URL', '')
+    monkeypatch.setattr(auth, 'PASSWORD_LOGIN', True)
+    fil = Family(client)
+    sara = client()
+    b = sign_up(sara, email='sara@example.com', name='Sara')
+    luca_a = next(p['id'] for p in ok(fil.c.post('/api/family/people', json={'name': 'Luca'}), 201) if p['name'] == 'Luca')
+    luca_b = next(p['id'] for p in ok(sara.post('/api/family/people', json={'name': 'LUCA', 'birth_date': '2025-01-10'}), 201) if p['name'] == 'LUCA')
+    same = pdf_with_text(['Bolletta luce marzo'])
+    fil.upload(same, 'a.pdf')
+    dup = fil.upload(same, 'b.pdf', c=sara)['document_id']
+    own = fil.upload(pdf_with_text(['Referto di Luca']), 'r.pdf', c=sara, person_id=str(luca_b))['document_id']
+    r = ok(merge(client(), fil.me['family']['id'], [b['family']['id']]))
+    assert r['report']['documents'] == 2 and r['report']['duplicates_to_trash'] == 1 and r['report']['people_merged'] == 1
+    me = ok(sara.get('/api/me'))
+    assert me['family']['id'] == fil.me['family']['id']
+    people = {p['name']: p for p in me['people']}
+    assert set(people) == {'Fil', 'Sara', 'Luca'} and people['Luca']['birth_date'] == '2025-01-10'
+    assert people['Sara']['user_id'] == me['user']['id']
+    assert ok(sara.get(f'/api/documents/{own}'))['person_id'] == luca_a
+    assert ok(sara.get(f'/api/documents/{dup}'))['deleted_at']           # identical file: in the trash, recoverable
+    assert ok(sara.get('/api/documents'))['total'] == 2
+    assert ok(sara.get('/api/documents?q=referto'))['total'] == 1

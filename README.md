@@ -38,6 +38,11 @@ deadlines sent to doTrack, links to eaTrack, the tax return view (phase 3); per-
 
 ## Running with Docker
 
+The code shared with the other family apps is in the `backend/famkit` submodule
+([famkit](https://github.com/filippogiuliani/famkit)): clone with
+`git clone --recurse-submodules https://github.com/filippogiuliani/patrack.git`, or run `git submodule update --init` in a
+clone made without it.
+
 ```sh
 cp .env.example .env    # set PATRACK_URL, Pocket ID, SMTP, the archive mailbox
 ./rebuild.sh

@@ -4,8 +4,8 @@ from flask import redirect
 
 import auth
 import db
-import hub
-import oidc
+from famkit import hub
+from famkit import oidc
 from conftest import PASSWORD, ok, sign_up
 from samples import pdf_with_text
 

@@ -8,3 +8,5 @@ paTrack_data
 backend/tests
 pytest.ini
 .pytest_cache
+backend/famkit/tests
+backend/famkit/.git

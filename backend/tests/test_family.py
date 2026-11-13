@@ -38,6 +38,6 @@ def test_partner_joins_as_a_person(family):
 
 
 def test_backup_status(family):
-    import backup
+    from famkit import backup
     backup.create_backup('auto')
     assert ok(family.c.get('/api/family'))['backup']['last_local']

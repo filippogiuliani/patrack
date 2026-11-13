@@ -15,10 +15,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest  # noqa: E402
 
 import auth  # noqa: E402
-import backup  # noqa: E402
+from famkit import backup  # noqa: E402
 import db  # noqa: E402
-import mail  # noqa: E402
-import oidc  # noqa: E402
+from famkit import mail  # noqa: E402
+from famkit import oidc  # noqa: E402
 import storage  # noqa: E402
 from app import create_app  # noqa: E402
 

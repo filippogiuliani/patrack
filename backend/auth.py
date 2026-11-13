@@ -12,9 +12,9 @@ from flask import Blueprint, abort, g, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
-import hub
+from famkit import hub
 import i18n
-import mail
+from famkit import mail
 from common import body, text
 
 bp = Blueprint('auth', __name__)
@@ -196,7 +196,7 @@ def _send_verification(conn, user_id, email):
 # ---------- Endpoints ----------
 @bp.get('/me')
 def me():
-    import oidc
+    from famkit import oidc
     base = {'signup_open': SIGNUP_OPEN and not hub.enabled(), 'oidc': oidc.public_providers(), 'password_login': PASSWORD_LOGIN,
             'hub': hub.public_info()}
     if not getattr(g, 'user', None):

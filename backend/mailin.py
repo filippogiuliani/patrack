@@ -24,7 +24,7 @@ from email.parser import BytesParser
 import db
 import i18n
 import imports
-import mail
+from famkit import mail
 
 ADDRESS = os.environ.get('PATRACK_INBOX_ADDRESS', '').strip()
 HOST = os.environ.get('PATRACK_IMAP_HOST', '')

@@ -15,6 +15,8 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/*.py ./
+# famkit: the shared code (git submodule: clone with --recurse-submodules or run "git submodule update --init")
+COPY backend/famkit/*.py ./famkit/
 COPY --from=web /web/dist ./static
 # Data (database, encrypted files, key, backups) lives in the volume mounted on /app/data
 EXPOSE 3002

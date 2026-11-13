@@ -5,7 +5,7 @@ import os
 from flask import Blueprint, abort, g, jsonify, session
 
 import db
-import hub
+from famkit import hub
 import i18n
 from auth import app_link, create_token, rate_limit, read_token, require_admin, use_token
 from common import body, text, valid_date
@@ -30,7 +30,7 @@ def family():
 
 def backup_status():
     """Local database backups and the off-site copy (written by scripts/backup-to-nas.sh into DATA_DIR/offsite.json)."""
-    import backup
+    from famkit import backup
     local = backup.list_backups()
     offsite = None
     try:

@@ -1,6 +1,7 @@
 """SQLite database: connection and schema."""
 import os
 import sqlite3
+import sys
 from contextlib import contextmanager
 
 DATA_DIR = os.environ.get('PATRACK_DATA', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
@@ -211,7 +212,7 @@ def init_db():
     conn = connect()
     try:
         conn.executescript(SCHEMA)
-        # weHub link (see hub.py): which weHub family/user/person each row is, NULL = not managed there
+        # weHub link (see famkit/hub.py): which weHub family/user/person each row is, NULL = not managed there
         for table, column in (('families', 'hub_id'), ('families', 'hub_version'), ('users', 'hub_id'), ('people', 'hub_id')):
             if column not in {r[1] for r in conn.execute(f'PRAGMA table_info({table})')}:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} INTEGER')
@@ -224,3 +225,8 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+
+
+# The shared code (famkit: mail, backups, weHub link, sign-in) reads PATRACK_* variables and uses this module
+import famkit  # noqa: E402
+famkit.configure('PATRACK', 'paTrack', sys.modules[__name__])

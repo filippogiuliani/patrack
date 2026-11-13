@@ -3,7 +3,7 @@ import pytest
 from flask import abort, redirect
 
 import auth
-import oidc
+from famkit import oidc
 from conftest import PASSWORD, ok, sign_up
 
 

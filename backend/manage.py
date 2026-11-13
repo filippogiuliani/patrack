@@ -16,7 +16,7 @@ import shutil
 import sqlite3
 import sys
 
-import backup
+from famkit import backup
 import db
 import search
 import storage

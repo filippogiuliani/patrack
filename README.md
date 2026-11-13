@@ -6,7 +6,7 @@ Every document of the family in one place: IDs and licences, health (reports, pr
 (paediatrician, nursery, school), home (contracts, mortgage, bills, condominium), car, taxes, work, purchases and
 warranties, bank and insurance. Same stack, style and sign-in as **doTrack** and **eaTrack**.
 
-Phase 1 (this version): import, archive, search.
+Phase 1: import, archive, search. Phase 3: links with doTrack and eaTrack, the tax return view.
 
 - **Import, never silently lost**
   - **Browser**: drag and drop anywhere in the window (dozens of files at once), file picker, paste.
@@ -27,8 +27,17 @@ Phase 1 (this version): import, archive, search.
   by person, category, year and expiry, sorting, highlighted extracts, a trash kept 30 days.
 - **People**: every member is a person documents can be about, plus people without an account (kids, grandparents).
 
+- **With the other family apps** (weHub mode, only for people who use them):
+  - *Remind me in doTrack* on a document with an expiry date: a doTrack deadline (reminder N days before, the person,
+    a link back) kept in step with the document, removed with the trash; retried by itself when doTrack is down.
+  - From a doTrack deadline, *Archive the document in paTrack*: the file comes here and keeps that deadline in step.
+  - *Paediatrician's plan for eaTrack* on a child's document: listed on eaTrack's Plan page.
+- **Tax return**: the year's expenses by kind (medical, school and nursery, mortgage interest, insurance, sport…) and
+  person, with totals of the amounts written on the documents and what is missing an amount or a date; a ZIP with the
+  originals (a folder per kind) and a CSV summary for the CAF. It collects, it does not compute deductions.
+
 Coming next: automatic proposals (category, person, dates, amount, issuer) that learn from corrections (phase 2);
-deadlines sent to doTrack, links to eaTrack, the tax return view (phase 3); per-person sharing (phase 4).
+per-person sharing (phase 4).
 
 - `backend/` – Flask API + SQLite (waitress, port 3002), OCR worker, IMAP reader
 - `frontend/` – Svelte + Vite interface, built into the Docker image

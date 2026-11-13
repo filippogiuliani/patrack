@@ -19,6 +19,7 @@
     form = {
       title: d.title, category: d.category ?? '', doc_type: d.doc_type, person_id: d.person_id ?? '', doc_date: d.doc_date ?? '',
       expiry_date: d.expiry_date ?? '', amount: amountInput(d.amount_cents), issuer: d.issuer, notes: d.notes,
+      dotrack: !!d.dotrack, dotrack_remind: d.dotrack_remind ?? '', eatrack_plan: !!d.eatrack_plan,
     };
   }
   async function load() {
@@ -42,12 +43,19 @@
     form.title !== doc.title || (form.category || null) !== doc.category || form.doc_type !== doc.doc_type ||
     (form.person_id || null) !== doc.person_id || (form.doc_date || null) !== doc.doc_date ||
     (form.expiry_date || null) !== doc.expiry_date || form.amount !== amountInput(doc.amount_cents) ||
-    form.issuer !== doc.issuer || form.notes !== doc.notes));
+    form.issuer !== doc.issuer || form.notes !== doc.notes || form.dotrack !== !!doc.dotrack ||
+    (form.dotrack_remind === '' ? null : Number(form.dotrack_remind)) !== doc.dotrack_remind || form.eatrack_plan !== !!doc.eatrack_plan));
+
+  // The other family apps (weHub mode): only those this person may use
+  const usesApp = (id) => (app.me.hub?.apps ?? []).some((a) => a.id === id);
+  const chosenPerson = $derived(app.me.people.find((p) => p.id === form?.person_id));
+  const REMIND_DAYS = [0, 7, 30, 60, 90];
 
   async function save(close = true) {
     saving = true;
     try {
-      fill(await put(`/documents/${id}`, { ...form, person_id: form.person_id || null, category: form.category || null }));
+      fill(await put(`/documents/${id}`, { ...form, person_id: form.person_id || null, category: form.category || null,
+        dotrack_remind: form.dotrack_remind === '' ? null : Number(form.dotrack_remind) }));
       toast(t('common.saved'));
       loadFacets();
       if (close) onclose();
@@ -160,6 +168,31 @@
             <input class="input" bind:value={form.amount} inputmode="decimal" placeholder="0,00 €" maxlength="20" /></label>
         </div>
 
+        {#if usesApp('dotrack') && (form.expiry_date || form.dotrack)}
+          <div class="field link-box">
+            <label class="toggle ok"><input type="checkbox" bind:checked={form.dotrack} />{t('doc.dotrack')}</label>
+            {#if form.dotrack}
+              <label class="inline small"><span>{t('doc.dotrack_remind')}</span>
+                <select class="input sm" bind:value={form.dotrack_remind}>
+                  <option value="">{t('doc.dotrack_no_reminder')}</option>
+                  {#each REMIND_DAYS as n}<option value={n}>{n === 0 ? t('doc.dotrack_same_day') : t('doc.dotrack_days_before', { n })}</option>{/each}
+                </select></label>
+            {/if}
+            {#if doc.dotrack && !dirty}
+              {#if doc.dotrack_state === 'sent'}<span class="tiny muted">✓ {t('doc.dotrack_sent')}</span>
+              {:else if doc.dotrack_state === 'pending'}<span class="tiny muted">{t('doc.dotrack_pending')}</span>
+              {:else if doc.dotrack_state === 'error'}<span class="tiny danger">{doc.dotrack_error}</span>{/if}
+            {/if}
+            {#if !form.expiry_date && form.dotrack}<span class="tiny muted">{t('doc.dotrack_needs_expiry')}</span>{/if}
+          </div>
+        {/if}
+        {#if usesApp('eatrack') && (form.eatrack_plan || (chosenPerson && !chosenPerson.user_id))}
+          <div class="field link-box">
+            <label class="toggle ok"><input type="checkbox" bind:checked={form.eatrack_plan} />{t('doc.eatrack_plan')}</label>
+            <span class="tiny muted">{t('doc.eatrack_plan_note')}</span>
+          </div>
+        {/if}
+
         <label class="field"><span class="label">{t('doc.notes')}</span>
           <textarea class="input" bind:value={form.notes} maxlength="10000"></textarea></label>
 
@@ -202,6 +235,9 @@
 </Sheet>
 
 <style>
+  .link-box { gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm, 8px); }
+  .inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .input.sm { width: auto; padding-top: 4px; padding-bottom: 4px; }
   .layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 900px) { .layout { grid-template-columns: 220px minmax(0, 1fr); } }
   .preview { display: block; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; background: var(--surface-2);

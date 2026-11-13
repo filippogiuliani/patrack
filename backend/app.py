@@ -10,6 +10,7 @@ import auth
 from famkit import backup
 import db
 import hub_hooks
+import links  # also adds its routes for the other apps to famkit's hub blueprint
 from famkit import hub
 import i18n
 import imports
@@ -156,6 +157,7 @@ if __name__ == '__main__':
     imports.start_worker()
     mailin.start_poller()
     hub.start_sync()
+    links.start_worker()
     port = int(os.environ.get('PORT', '3002'))
     if not auth.PASSWORD_LOGIN and not oidc.PROVIDERS:
         print('[paTrack] WARNING: password sign-in is off and no OIDC provider is configured: nobody can sign in', flush=True)

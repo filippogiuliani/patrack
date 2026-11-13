@@ -7,6 +7,7 @@ from flask import Blueprint, Response, abort, g, jsonify, request
 
 import db
 import imports
+import links
 import processing
 import search
 import storage
@@ -16,7 +17,7 @@ bp = Blueprint('documents', __name__)
 
 LIST_FIELDS = '''d.id, d.title, d.category, d.doc_type, d.person_id, d.doc_date, d.expiry_date, d.amount_cents, d.issuer,
                  d.status, d.review_reason, d.mime, d.size, d.pages, d.file_name, d.preview_name IS NOT NULL AS has_preview,
-                 d.created_at, d.updated_at, d.deleted_at'''
+                 d.created_at, d.updated_at, d.deleted_at, d.dotrack, d.dotrack_state, d.eatrack_plan'''
 SORTS = {'date': 'COALESCE(d.doc_date, date(d.created_at)) DESC, d.id DESC', 'added': 'd.id DESC',
          'expiry': 'd.expiry_date IS NULL, d.expiry_date, d.id DESC', 'title': 'd.title COLLATE NOCASE, d.id DESC'}
 EXPIRY_SOON_DAYS = 60
@@ -174,7 +175,7 @@ def update_document(doc_id):
     d = body()
     with db.transaction() as conn:
         cur = _doc(conn, doc_id)
-        fields = {}
+        fields, sync = {}, False
         if 'title' in d:
             fields['title'] = text(d['title'], 200) or cur['title']
         if 'category' in d:
@@ -200,13 +201,35 @@ def update_document(doc_id):
                 fields[k] = valid_date(d[k], k) if d[k] else None
         if 'amount' in d:
             fields['amount_cents'] = _amount(d['amount'])
+        if 'dotrack' in d:
+            fields['dotrack'] = 1 if d['dotrack'] else 0
+            if d['dotrack'] and not cur['dotrack']:
+                fields['dotrack_by'] = g.user['id']
+        if 'dotrack_remind' in d:
+            r = d['dotrack_remind']
+            if r in (None, ''):
+                fields['dotrack_remind'] = None
+            elif isinstance(r, int) and 0 <= r <= 365:
+                fields['dotrack_remind'] = r
+            else:
+                abort(400, 'Invalid reminder')
+        if 'eatrack_plan' in d:
+            fields['eatrack_plan'] = 1 if d['eatrack_plan'] else 0
         if cur['status'] == 'review':
             fields['status'], fields['review_reason'] = 'ready', None
         if fields:
             sets = ', '.join(f'{k} = ?' for k in fields)
             conn.execute(f"UPDATE documents SET {sets}, updated_at = datetime('now') WHERE id = ?", (*fields.values(), doc_id))
             search.index(conn, conn.execute('SELECT * FROM documents WHERE id = ?', (doc_id,)).fetchone())
+            # doTrack shows the title/type, the date, the person and the reminder: tell it when one of them changed
+            shown = ('title', 'doc_type', 'person_id', 'expiry_date', 'category', 'dotrack', 'dotrack_remind')
+            sync = (fields.get('dotrack', cur['dotrack']) or cur['dotrack_item']) and \
+                any(k in fields and fields[k] != cur[k] for k in shown)
+            if sync:
+                links.mark(conn, doc_id)
             db.bump(conn, g.family_id)
+    if fields and sync:
+        links.push_deadline(doc_id)
     return get_document(doc_id)
 
 
@@ -232,7 +255,11 @@ def delete_document(doc_id):
         d = _doc(conn, doc_id)
         if request.args.get('permanent') != '1':
             conn.execute("UPDATE documents SET deleted_at = datetime('now') WHERE id = ?", (doc_id,))
+            if d['dotrack_item']:
+                links.mark(conn, doc_id)   # its deadline goes away in doTrack too
             db.bump(conn, g.family_id)
+            if d['dotrack_item']:
+                links.wake()
             return jsonify(ok=True)
         if not d['deleted_at']:
             abort(400, 'Move it to the trash first')
@@ -243,9 +270,13 @@ def delete_document(doc_id):
 @bp.post('/documents/<int:doc_id>/restore')
 def restore(doc_id):
     with db.transaction() as conn:
-        _doc(conn, doc_id)
+        d = _doc(conn, doc_id)
         conn.execute('UPDATE documents SET deleted_at = NULL WHERE id = ?', (doc_id,))
+        if d['dotrack']:
+            links.mark(conn, doc_id)   # back from the trash: its deadline comes back (a new one) in doTrack
         db.bump(conn, g.family_id)
+    if d['dotrack']:
+        links.push_deadline(doc_id)
     return get_document(doc_id)
 
 

@@ -16,7 +16,7 @@ ROLES = ['admin', 'member']
 DOC_STATUSES = ['processing', 'ready', 'review']
 # queued → processing → done | error; duplicate = same file already in the archive (nothing was stored)
 IMPORT_STATUSES = ['queued', 'processing', 'done', 'error', 'duplicate']
-IMPORT_SOURCES = ['upload', 'scan', 'shortcut', 'email', 'api']
+IMPORT_SOURCES = ['upload', 'scan', 'shortcut', 'email', 'api', 'dotrack']
 TRASH_DAYS = 30
 
 SCHEMA = '''
@@ -216,6 +216,16 @@ def init_db():
         for table, column in (('families', 'hub_id'), ('families', 'hub_version'), ('users', 'hub_id'), ('people', 'hub_id')):
             if column not in {r[1] for r in conn.execute(f'PRAGMA table_info({table})')}:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} INTEGER')
+        # Links with the other family apps (see links.py)
+        for column, definition in (('dotrack', 'INTEGER NOT NULL DEFAULT 0'),   # keep a doTrack deadline for the expiry
+                                   ('dotrack_remind', 'INTEGER'),               # its reminder, N days before (NULL = none)
+                                   ('dotrack_state', 'TEXT'),                   # pending | sent | error | NULL
+                                   ('dotrack_item', 'INTEGER'),                 # the deadline in doTrack
+                                   ('dotrack_error', 'TEXT'),                   # why doTrack said no
+                                   ('dotrack_by', 'INTEGER'),                   # who turned it on (doTrack is asked as them)
+                                   ('eatrack_plan', 'INTEGER NOT NULL DEFAULT 0')):  # the paediatrician's plan, shown in eaTrack
+            if column not in {r[1] for r in conn.execute('PRAGMA table_info(documents)')}:
+                conn.execute(f'ALTER TABLE documents ADD COLUMN {column} {definition}')
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_families_hub ON families(hub_id)')
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_hub ON users(hub_id)')
         conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')

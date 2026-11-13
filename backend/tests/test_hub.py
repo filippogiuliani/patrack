@@ -180,3 +180,116 @@ def test_merge_two_families_made_separately(client, wehub, monkeypatch):
     assert ok(sara.get(f'/api/documents/{dup}'))['deleted_at']           # identical file: in the trash, recoverable
     assert ok(sara.get('/api/documents'))['total'] == 2
     assert ok(sara.get('/api/documents?q=referto'))['total'] == 1
+
+
+# ---------- Links with doTrack and eaTrack (links.py) ----------
+
+def _hub_family(client, wehub):
+    fil = user(10, 'Fil', 'fil@example.com')
+    wehub.users = {'fil@example.com': fil}
+    family(wehub, members=[{**fil, 'role': 'admin'}],
+           people=[{'hub_id': 100, 'name': 'Fil', 'user_hub_id': 10}, {'hub_id': 102, 'name': 'Luca', 'kind': 'child', 'user_hub_id': None}])
+    wehub.access = {10: [1]}
+    c = client()
+    sign_in(c, wehub, 'fil@example.com')
+    return c
+
+
+def _upload(c, text='Carta di identità Luca'):
+    import io
+    from conftest import run_queue
+    r = ok(c.post('/api/imports', data={'file': (io.BytesIO(pdf_with_text([text])), 'ci.pdf')}, content_type='multipart/form-data'), 201)
+    run_queue()
+    return ok(c.get(f"/api/imports/{r['id']}"))['document_id']
+
+
+class DoTrack:
+    """Stands in for weHub → doTrack."""
+
+    def __init__(self):
+        self.calls, self.down, self.answer = [], False, {'item_id': 5, 'created': True}
+
+    def __call__(self, method, url, **kw):
+        import requests
+        if self.down:
+            raise requests.ConnectionError()
+        self.calls.append((method, url.split('/families/1', 1)[1], kw.get('json')))
+        r = requests.Response()
+        r.status_code, r._content = 201, __import__('json').dumps(self.answer).encode()
+        return r
+
+
+def test_a_document_keeps_its_deadline_in_dotrack(client, wehub, monkeypatch):
+    import requests
+    import links
+    monkeypatch.setattr(auth, 'BASE_URL', 'https://pa.example')
+    c = _hub_family(client, wehub)
+    dt = DoTrack()
+    monkeypatch.setattr(requests, 'request', dt)
+    doc = _upload(c)
+    luca = next(p['id'] for p in ok(c.get('/api/me'))['people'] if p['name'] == 'Luca')
+    ok(c.put(f'/api/documents/{doc}', json={'doc_type': "Carta d'identità", 'person_id': luca, 'expiry_date': '2031-03-04'}))
+    assert dt.calls == []                                   # not asked for: doTrack is left alone
+    d = ok(c.put(f'/api/documents/{doc}', json={'dotrack': True, 'dotrack_remind': 60}))
+    assert (d['dotrack'], d['dotrack_state'], d['dotrack_item']) == (1, 'sent', 5)
+    method, path, payload = dt.calls[-1]
+    assert (method, path) == ('PUT', f'/deadlines/patrack-{doc}')
+    assert payload['title'] == "Carta d'identità" and payload['due_date'] == '2031-03-04' and payload['remind_days'] == 60
+    assert payload['person_hub_id'] == 102 and payload['url'] == f'https://pa.example/#/doc/{doc}' and payload['category'] is None
+    ok(c.put(f'/api/documents/{doc}', json={'notes': 'nel cassetto'}))
+    assert len(dt.calls) == 1                               # nothing doTrack shows changed
+    # doTrack down: waits, then goes on the next round
+    dt.down = True
+    assert ok(c.put(f'/api/documents/{doc}', json={'expiry_date': '2041-03-04'}))['dotrack_state'] == 'pending'
+    dt.down = False
+    links.push_pending()
+    assert dt.calls[-1][2]['due_date'] == '2041-03-04' and ok(c.get(f'/api/documents/{doc}'))['dotrack_state'] == 'sent'
+    # To the trash: the deadline goes too; restored: back
+    ok(c.delete(f'/api/documents/{doc}'))
+    links.push_pending()
+    assert dt.calls[-1][:2] == ('DELETE', f'/deadlines/patrack-{doc}')
+    assert ok(c.get(f'/api/documents/{doc}'))['dotrack_item'] is None
+    ok(c.post(f'/api/documents/{doc}/restore'))
+    assert dt.calls[-1][0] == 'PUT'
+    # Turned off: removed; deleted by someone in doTrack: turned off here
+    ok(c.put(f'/api/documents/{doc}', json={'dotrack': False}))
+    assert dt.calls[-1][0] == 'DELETE'
+    dt.answer = {'item_id': 5, 'deleted': True}
+    d = ok(c.put(f'/api/documents/{doc}', json={'dotrack': True}))
+    assert (d['dotrack'], d['dotrack_state']) == (0, None)
+    assert c.put(f'/api/documents/{doc}', json={'dotrack_remind': 'x'}).status_code == 400
+
+
+def test_documents_from_dotrack_and_plans_for_eatrack(client, wehub, monkeypatch):
+    import base64
+    from conftest import run_queue
+    monkeypatch.setattr(auth, 'BASE_URL', 'https://pa.example')
+    c = _hub_family(client, wehub)
+    H = {'Authorization': 'Bearer ' + KEY}
+    pdf = pdf_with_text(['Passaporto Luca'])
+    body = {'file_name': 'passaporto.pdf', 'content': base64.b64encode(pdf).decode(), 'title': 'Passaporto Luca',
+            'expiry_date': '2030-05-01', 'remind_days': 90, 'category': 'identity', 'dotrack_item': 8, 'person_hub_id': 102}
+    post = lambda level='full', **extra: client().post(f'/api/hub/families/1/documents?user=10&level={level}', headers=H,  # noqa: E731
+                                                        json={**body, **extra})
+    assert post(level='').status_code == 403 and post(level='limited').status_code == 403
+    assert post(content='%%%').status_code == 400
+    r = ok(post(), 201)
+    assert r['url'] == f"https://pa.example/#/doc/{r['id']}" and not r['duplicate']
+    run_queue()
+    d = ok(c.get(f"/api/documents/{r['id']}"))
+    assert (d['title'], d['expiry_date'], d['category'], d['dotrack'], d['dotrack_remind'], d['dotrack_state'], d['dotrack_item']) == \
+        ('Passaporto Luca', '2030-05-01', 'identity', 1, 90, 'sent', 8)
+    assert next(p['name'] for p in ok(c.get('/api/me'))['people'] if p['id'] == d['person_id']) == 'Luca'
+    assert d['origin']['source'] == 'dotrack'
+    # The same file from another deadline: refused; from the same one: the same document
+    assert post(dotrack_item=9).status_code == 409
+    assert ok(post(), 201) == {**r, 'duplicate': True}
+    # eaTrack: the paediatrician's plans of a child
+    plans = lambda child=102, level='full': client().get(f'/api/hub/families/1/plans?user=10&child={child}&level={level}', headers=H)  # noqa: E731
+    assert ok(plans()) == []
+    plan = _upload(c, 'Piano svezzamento settimana 3: zucchine, carote')
+    luca = d['person_id']
+    ok(c.put(f'/api/documents/{plan}', json={'person_id': luca, 'eatrack_plan': True, 'doc_date': '2026-11-10', 'doc_type': 'Piano'}))
+    got = ok(plans())
+    assert [p['id'] for p in got] == [plan] and 'zucchine' in got[0]['excerpt'] and got[0]['url'].endswith(f'/doc/{plan}')
+    assert ok(plans(child=100)) == [] and plans(level='limited').status_code == 403

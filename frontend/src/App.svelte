@@ -18,9 +18,10 @@
   import Privacy from './pages/Privacy.svelte';
   import Archive from './pages/Archive.svelte';
   import Imports from './pages/Imports.svelte';
+  import Tax from './pages/Tax.svelte';
   import Family from './pages/Family.svelte';
 
-  const NAV = ['archive', 'imports', 'family'];
+  const NAV = ['archive', 'tax', 'imports', 'family'];
   // Pages reachable without an account
   const PUBLIC = ['login', 'signup', 'forgot-password', 'reset', 'verify', 'invite', 'privacy'];
 
@@ -207,6 +208,8 @@
       {#key page + ':' + app.me.family?.id}
         {#if page === 'family'}
           <Family onlogout={logout} initialError={route.query.get('error') ?? ''} section={route.query.get('section') ?? ''} />
+        {:else if page === 'tax'}
+          <Tax />
         {:else if page === 'imports'}
           <Imports onupload={chooseFiles} onscan={() => (app.scanner = true)} />
         {:else}

@@ -223,7 +223,8 @@ def init_db():
                                    ('dotrack_item', 'INTEGER'),                 # the deadline in doTrack
                                    ('dotrack_error', 'TEXT'),                   # why doTrack said no
                                    ('dotrack_by', 'INTEGER'),                   # who turned it on (doTrack is asked as them)
-                                   ('eatrack_plan', 'INTEGER NOT NULL DEFAULT 0')):  # the paediatrician's plan, shown in eaTrack
+                                   ('eatrack_plan', 'INTEGER NOT NULL DEFAULT 0'),  # the paediatrician's plan, shown in eaTrack
+                                   ('tax_kind', 'TEXT')):                       # tax return: a kind, 'none', NULL = proposed
             if column not in {r[1] for r in conn.execute('PRAGMA table_info(documents)')}:
                 conn.execute(f'ALTER TABLE documents ADD COLUMN {column} {definition}')
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_families_hub ON families(hub_id)')

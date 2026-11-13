@@ -28,7 +28,7 @@
   const dismiss = (i) => act(() => post(`/imports/${i.id}/dismiss`));
   const clearDone = () => act(() => post('/imports/dismiss-done'));
 
-  const SOURCE_ICON = { upload: 'upload', scan: 'scan', shortcut: 'phone', email: 'mail', api: 'refresh' };
+  const SOURCE_ICON = { upload: 'upload', scan: 'scan', shortcut: 'phone', email: 'mail', api: 'refresh', dotrack: 'deadline' };
   function when(s) {
     const d = new Date(s.replace(' ', 'T') + 'Z');
     return d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

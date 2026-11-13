@@ -6,6 +6,7 @@ from urllib.parse import quote
 from flask import Blueprint, Response, abort, g, jsonify, request
 
 import db
+import api_tax
 import imports
 import links
 import processing
@@ -145,6 +146,7 @@ def get_document(doc_id):
                               (doc_id,)).fetchone()
         creator = conn.execute('SELECT name FROM users WHERE id = ?', (d['created_by'],)).fetchone() if d['created_by'] else None
         duplicates = conn.execute('''SELECT COUNT(*) FROM imports WHERE duplicate_of = ? AND status = 'duplicate' ''', (doc_id,)).fetchone()[0]
+    d['tax_guess'] = api_tax.guess(d)   # what "proposed" means for this document
     d['has_preview'] = bool(d.pop('preview_name'))
     for k in ('stored_name', 'family_id'):
         d.pop(k)
@@ -215,6 +217,10 @@ def update_document(doc_id):
                 abort(400, 'Invalid reminder')
         if 'eatrack_plan' in d:
             fields['eatrack_plan'] = 1 if d['eatrack_plan'] else 0
+        if 'tax_kind' in d:
+            if d['tax_kind'] not in (None, '', api_tax.NONE, *api_tax.KINDS):
+                abort(400, 'Invalid kind')
+            fields['tax_kind'] = d['tax_kind'] or None
         if cur['status'] == 'review':
             fields['status'], fields['review_reason'] = 'ready', None
         if fields:

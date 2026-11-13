@@ -19,7 +19,7 @@
     form = {
       title: d.title, category: d.category ?? '', doc_type: d.doc_type, person_id: d.person_id ?? '', doc_date: d.doc_date ?? '',
       expiry_date: d.expiry_date ?? '', amount: amountInput(d.amount_cents), issuer: d.issuer, notes: d.notes,
-      dotrack: !!d.dotrack, dotrack_remind: d.dotrack_remind ?? '', eatrack_plan: !!d.eatrack_plan,
+      dotrack: !!d.dotrack, dotrack_remind: d.dotrack_remind ?? '', eatrack_plan: !!d.eatrack_plan, tax_kind: d.tax_kind ?? '',
     };
   }
   async function load() {
@@ -44,7 +44,9 @@
     (form.person_id || null) !== doc.person_id || (form.doc_date || null) !== doc.doc_date ||
     (form.expiry_date || null) !== doc.expiry_date || form.amount !== amountInput(doc.amount_cents) ||
     form.issuer !== doc.issuer || form.notes !== doc.notes || form.dotrack !== !!doc.dotrack ||
-    (form.dotrack_remind === '' ? null : Number(form.dotrack_remind)) !== doc.dotrack_remind || form.eatrack_plan !== !!doc.eatrack_plan));
+    (form.dotrack_remind === '' ? null : Number(form.dotrack_remind)) !== doc.dotrack_remind || form.eatrack_plan !== !!doc.eatrack_plan ||
+    (form.tax_kind || null) !== doc.tax_kind));
+  const TAX_KINDS = ['medical', 'school', 'mortgage', 'insurance', 'sport', 'vet', 'home_works', 'rent', 'donations', 'other'];
 
   // The other family apps (weHub mode): only those this person may use
   const usesApp = (id) => (app.me.hub?.apps ?? []).some((a) => a.id === id);
@@ -55,7 +57,7 @@
     saving = true;
     try {
       fill(await put(`/documents/${id}`, { ...form, person_id: form.person_id || null, category: form.category || null,
-        dotrack_remind: form.dotrack_remind === '' ? null : Number(form.dotrack_remind) }));
+        dotrack_remind: form.dotrack_remind === '' ? null : Number(form.dotrack_remind), tax_kind: form.tax_kind || null }));
       toast(t('common.saved'));
       loadFacets();
       if (close) onclose();
@@ -166,6 +168,12 @@
             {#if exp && form.expiry_date === doc.expiry_date}<span class="tiny" class:danger={exp.level === 'expired'}>{exp.text}</span>{/if}</label>
           <label class="field"><span class="label">{t('doc.amount')}</span>
             <input class="input" bind:value={form.amount} inputmode="decimal" placeholder="0,00 €" maxlength="20" /></label>
+          <label class="field"><span class="label">{t('doc.tax')}</span>
+            <select class="input" bind:value={form.tax_kind}>
+              <option value="">{t('doc.tax_auto', { kind: doc.tax_guess ? t('tax.kind.' + doc.tax_guess) : t('doc.tax_not') })}</option>
+              {#each TAX_KINDS as k}<option value={k}>{t('tax.kind.' + k)}</option>{/each}
+              <option value="none">{t('doc.tax_not')}</option>
+            </select></label>
         </div>
 
         {#if usesApp('dotrack') && (form.expiry_date || form.dotrack)}

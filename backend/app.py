@@ -19,6 +19,7 @@ from famkit import oidc
 import security
 import storage
 from api_documents import bp as documents_bp
+from api_tax import bp as tax_bp
 from api_family import bp as family_bp
 
 # Requests that change nothing the family shares
@@ -69,7 +70,7 @@ def create_app():
     oidc.use(auth, i18n.tr, lambda conn, name, email, invite, d:
              auth.create_user(conn, name, email, oidc.NO_PASSWORD, True, invite, d.get('language')))
     oidc.configure(app)
-    for bp in (auth.bp, oidc.bp, hub.bp, family_bp, security.bp, imports.bp, documents_bp):
+    for bp in (auth.bp, oidc.bp, hub.bp, family_bp, security.bp, imports.bp, documents_bp, tax_bp):
         app.register_blueprint(bp, url_prefix='/api')
 
     @app.before_request

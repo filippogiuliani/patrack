@@ -288,8 +288,6 @@ export default {
   "mail.senders": "From which addresses",
   "mail.senders_explain": "Emails are accepted only from these addresses (others are ignored). Add your work email, for example.",
   "mail.title": "Import by email",
-  "nav.apps": "Family apps",
-  "nav.home": "Family home",
   "nav.archive": "Archive",
   "nav.family": "Family",
   "nav.imports": "Import",

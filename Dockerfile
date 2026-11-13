@@ -4,6 +4,8 @@ WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# famkit/ui: shared frontend parts, reached as ../backend/famkit/ui (see vite.config.js)
+COPY backend/famkit/ui /backend/famkit/ui
 RUN npx vite build --outDir /web/dist
 
 # 2) Flask backend serving the API and the frontend, with Tesseract for OCR (Italian + English)

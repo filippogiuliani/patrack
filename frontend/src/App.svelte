@@ -189,13 +189,15 @@
       </button>
     </nav>
     <main class="main">
-      {#if app.me.hub?.apps?.length}
-        <!-- Phone, weHub mode: a slim top bar with the app switcher -->
-        <div class="topbar hide-desktop">
-          <a class="brand" href="#/archive"><img src="/icon.svg" alt="" width="24" height="24" /><span>paTrack</span></a>
-          <AppSwitcher hub={app.me.hub} />
-        </div>
-      {/if}
+      <!-- Phone: a slim top bar, so the other apps and signing out are always one tap away (as in doTrack/eaTrack) -->
+      <div class="topbar hide-desktop">
+        <a class="brand" href="#/archive"><img src="/icon.svg" alt="" width="24" height="24" /><span>paTrack</span></a>
+        <AppSwitcher hub={app.me.hub} />
+        <span class="grow"></span>
+        <button class="btn ghost sm" onclick={() => logout()} aria-label={t('account.sign_out')}>
+          <Icon name="logout" size={16} /><span>{t('account.sign_out')}</span>
+        </button>
+      </div>
       {#if !app.online}
         <div class="notice small offline" role="status"><span>{t('offline.banner')}</span></div>
       {/if}
@@ -246,7 +248,9 @@
     display: flex; background: var(--surface); border-top: 1px solid var(--line);
   }
   .logo { display: none; }
-  .topbar { display: flex; align-items: center; justify-content: space-between; margin: -8px 0 12px; }
+  .topbar { display: flex; align-items: center; gap: 4px; margin: -8px 0 12px; }
+  .topbar .grow { flex: 1; }
+  .topbar .btn { gap: 6px; }
   .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font-weight: 650; letter-spacing: -0.02em; }
   .brand img { border-radius: 6px; }
   .nav a:not(.logo), .scan-nav {

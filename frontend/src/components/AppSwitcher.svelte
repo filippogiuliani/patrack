@@ -65,6 +65,11 @@
   .menu { position: absolute; z-index: 50; top: calc(100% + 6px); left: 0; min-width: 220px; padding: 6px;
     background: var(--surface, #fff); border: 1px solid var(--line); border-radius: var(--r, 12px); box-shadow: 0 10px 30px rgb(0 0 0 / 0.14); }
   :global(.topbar) .menu { left: auto; right: 0; }
+  /* Phones: a panel as wide as the screen under the top bar, wherever the button is (never off-screen) */
+  @media (max-width: 899px) {
+    .menu { position: fixed; top: calc(env(safe-area-inset-top) + 56px); left: 12px; right: 12px; min-width: 0; }
+    :global(.topbar) .menu { left: 12px; right: 12px; }
+  }
   .item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm, 8px); text-decoration: none; color: var(--ink); }
   .item:hover { background: var(--surface-2); }
   .item.current { background: var(--primary-soft); }

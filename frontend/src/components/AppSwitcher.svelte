@@ -20,7 +20,7 @@
 
 {#if hub && apps.length}
   <div class="switcher" bind:this={root}>
-    <button class="trigger" class:label onclick={() => (open = !open)} aria-expanded={open} aria-haspopup="menu"
+    <button class="trigger" class:with-label={label} onclick={() => (open = !open)} aria-expanded={open} aria-haspopup="menu"
       aria-label={t('nav.apps')} title={t('nav.apps')}>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" />
@@ -50,9 +50,9 @@
 
 <style>
   .switcher { position: relative; }
-  .trigger { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: var(--ink-2, var(--ink)); cursor: pointer;
+  .trigger { display: flex; align-items: center; gap: 10px; white-space: nowrap; border: 0; background: none; color: var(--ink-2, var(--ink)); cursor: pointer;
     padding: 8px; border-radius: var(--r-sm, 8px); font: inherit; font-size: 0.92rem; }
-  .trigger.label { width: 100%; padding: 9px 12px; }
+  .trigger.with-label { width: 100%; padding: 9px 12px; }
   .trigger:hover, .trigger[aria-expanded='true'] { background: var(--surface-2); color: var(--ink); }
   .menu { position: absolute; z-index: 50; top: calc(100% + 6px); left: 0; min-width: 220px; padding: 6px;
     background: var(--surface, #fff); border: 1px solid var(--line); border-radius: var(--r, 12px); box-shadow: 0 10px 30px rgb(0 0 0 / 0.14); }

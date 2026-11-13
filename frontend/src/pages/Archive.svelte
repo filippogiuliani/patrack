@@ -194,6 +194,12 @@
   .docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line);
     border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
   .docs li + li { border-top: 1px solid var(--line); }
+  @media (min-width: 1400px) {
+    .docs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .docs li + li { border-top: 0; }
+    .docs li { border-bottom: 1px solid var(--line); margin-bottom: -1px; }
+    .docs li:nth-child(odd) { border-right: 1px solid var(--line); }
+  }
   .doc { display: flex; gap: 12px; padding: 12px 14px; text-decoration: none; color: inherit; }
   .doc:hover { background: var(--surface-2); }
   .thumb { width: 48px; height: 64px; flex-shrink: 0; border-radius: var(--r-xs); border: 1px solid var(--line); background: var(--surface-2);

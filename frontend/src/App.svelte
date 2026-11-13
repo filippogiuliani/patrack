@@ -278,7 +278,7 @@
     .count { position: static; margin-left: 4px; }
     .nav a:not(.logo) .ico { display: flex; width: auto; }
     .nav a.on { background: var(--primary-soft); }
-    .main { padding: 32px 32px 48px; width: 100%; }
+    .main { padding: 32px 32px 48px; width: 100%; max-width: 1680px; }
     .logout { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 0; border-radius: var(--r-sm);
       background: transparent; color: var(--muted); font: inherit; font-weight: 500; font-size: 0.92rem; cursor: pointer; text-align: left; }
     .logout:hover { color: var(--ink); background: var(--surface-2); }

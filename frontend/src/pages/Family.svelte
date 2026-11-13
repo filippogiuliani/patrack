@@ -453,7 +453,11 @@
   .head { margin-bottom: 18px; }
   .layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
   .layout > .card { min-width: 0; }
-  @media (min-width: 1000px) { .layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+  /* Desktop: the cards flow into up to three columns, each as tall as it needs (no holes under the shorter ones) */
+  @media (min-width: 1000px) {
+    .layout { display: block; columns: 3 360px; column-gap: 14px; }
+    .layout > :global(*) { break-inside: avoid; margin: 0 0 14px; }
+  }
   .email { overflow-wrap: anywhere; }
   .name { font-weight: 600; overflow-wrap: anywhere; }
   .sub { margin-top: 8px; }

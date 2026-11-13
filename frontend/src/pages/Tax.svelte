@@ -48,6 +48,7 @@
     </section>
     <p class="tiny muted">{t('tax.export_note')}</p>
 
+    <div class="kinds">
     {#each data.kinds as k (k.kind)}
       <section class="card kind">
         <button class="kind-head" onclick={() => toggle(k.kind)} aria-expanded={!!open[k.kind]}>
@@ -73,6 +74,7 @@
         {/if}
       </section>
     {/each}
+    </div>
 
     {#if data.missing_amount.length || data.missing_date.length}
       <section class="card warn">
@@ -97,7 +99,12 @@
   .year { width: auto; }
   .total { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
   .big { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
-  .kind { margin-top: 12px; padding: 0; overflow: hidden; }
+  .kinds { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  @media (min-width: 1100px) {
+    .kinds { display: block; columns: 3 360px; column-gap: 12px; }
+    .kinds > .kind { break-inside: avoid; margin: 0 0 12px; }
+  }
+  .kind { padding: 0; overflow: hidden; }
   .kind-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; border: 0; background: none; font: inherit;
     color: var(--ink); text-align: left; cursor: pointer; }
   .kind-head:hover { background: var(--surface-2); }

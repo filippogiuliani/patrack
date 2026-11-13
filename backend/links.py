@@ -207,3 +207,27 @@ def plans_for_eatrack():
                                ORDER BY COALESCE(d.doc_date, date(d.created_at)) DESC, d.id DESC LIMIT 20''',
                             (g.family_id, child)).fetchall()
     return jsonify([{**dict(r), 'url': doc_url(r['id'])} for r in rows])
+
+
+@hub.service('/summary')
+def summary_for_wehub():
+    """weHub's home: {to_fix, errors, added_week, expiring: [{id, title, expiry_date, person, url}], url}."""
+    import datetime
+    _can_read()
+    today = datetime.date.today()
+    soon = (today + datetime.timedelta(days=60)).isoformat()
+    with db.transaction() as conn:
+        one = lambda sql, *a: conn.execute(sql, (g.family_id, *a)).fetchone()[0]  # noqa: E731
+        to_fix = one("SELECT COUNT(*) FROM documents WHERE family_id = ? AND deleted_at IS NULL AND status = 'review'")
+        errors = one("SELECT COUNT(*) FROM imports WHERE family_id = ? AND status = 'error' AND dismissed = 0")
+        added = one("SELECT COUNT(*) FROM documents WHERE family_id = ? AND deleted_at IS NULL AND created_at >= ?",
+                    (today - datetime.timedelta(days=7)).isoformat())
+        rows = conn.execute('''SELECT d.id, d.title, d.doc_type, d.expiry_date, p.name AS person FROM documents d
+                               LEFT JOIN people p ON p.id = d.person_id
+                               WHERE d.family_id = ? AND d.deleted_at IS NULL AND d.expiry_date IS NOT NULL
+                               AND d.expiry_date <= ? AND d.expiry_date >= ?
+                               ORDER BY d.expiry_date LIMIT 5''',
+                            (g.family_id, soon, (today - datetime.timedelta(days=30)).isoformat())).fetchall()
+    return jsonify(to_fix=to_fix, errors=errors, added_week=added, url=auth.BASE_URL or None,
+                   expiring=[{'id': r['id'], 'title': r['doc_type'] or r['title'], 'expiry_date': r['expiry_date'],
+                              'person': r['person'], 'url': doc_url(r['id'])} for r in rows])

@@ -1,11 +1,19 @@
 <script>
   // Switching between the family apps (weHub mode): weHub's home and the apps this person may use in this family.
   // The same file is in doTrack, eaTrack and paTrack. The list comes from /api/me → hub.apps (see famkit/hub.py).
+  import { get } from '../lib/api.js';
   import { t } from '../lib/i18n.svelte.js';
   let { hub, label = false } = $props();
   let open = $state(false);
   let root;
-  const apps = $derived(hub?.apps ?? []);
+  // Right after an update the server may not have the list yet (it is fetching it from weHub): ask once more shortly
+  let later = $state(null);
+  $effect(() => {
+    if (!hub || hub.apps?.length || later) return;
+    const timer = setTimeout(() => get('/me').then((m) => (later = m.hub?.apps ?? [])).catch(() => {}), 4000);
+    return () => clearTimeout(timer);
+  });
+  const apps = $derived(hub?.apps?.length ? hub.apps : (later ?? []));
   const KNOWN = ['dotrack', 'eatrack', 'patrack'];
 
   function outside(e) {

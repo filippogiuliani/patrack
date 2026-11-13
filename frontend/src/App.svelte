@@ -3,6 +3,7 @@
   import { app, loadMe, showError, toast } from './lib/store.svelte.js';
   import { setLanguage, t } from './lib/i18n.svelte.js';
   import { failedUploads, pendingUploads, sendFiles, uploads } from './lib/uploads.svelte.js';
+  import AppSwitcher from './components/AppSwitcher.svelte';
   import Toast from './components/Toast.svelte';
   import Icon from './components/Icon.svelte';
   import DocSheet from './components/DocSheet.svelte';
@@ -171,6 +172,7 @@
   <div class="shell">
     <nav class="nav" aria-label={t('nav.sections')}>
       <a class="logo" href="#/archive"><img src="/icon.svg" alt="" width="28" height="28" /><span>paTrack</span></a>
+      <div class="nav-apps hide-mobile"><AppSwitcher hub={app.me.hub} label /></div>
       {#each NAV as id (id)}
         <a href="#/{id}" class:on={page === id} aria-current={page === id ? 'page' : undefined}>
           <span class="ico"><Icon name={id === 'family' ? 'family' : id} size={22} />
@@ -186,6 +188,13 @@
       </button>
     </nav>
     <main class="main">
+      {#if app.me.hub?.apps?.length}
+        <!-- Phone, weHub mode: a slim top bar with the app switcher -->
+        <div class="topbar hide-desktop">
+          <a class="brand" href="#/archive"><img src="/icon.svg" alt="" width="24" height="24" /><span>paTrack</span></a>
+          <AppSwitcher hub={app.me.hub} />
+        </div>
+      {/if}
       {#if !app.online}
         <div class="notice small offline" role="status"><span>{t('offline.banner')}</span></div>
       {/if}
@@ -216,6 +225,7 @@
 <Toast />
 
 <style>
+  .nav-apps { margin: -10px 0 8px; }
   .center { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
   .pulse { border-radius: 12px; animation: pulse 1s ease-in-out infinite alternate; }
   @keyframes pulse { to { opacity: 0.5; } }
@@ -233,6 +243,9 @@
     display: flex; background: var(--surface); border-top: 1px solid var(--line);
   }
   .logo { display: none; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin: -8px 0 12px; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font-weight: 650; letter-spacing: -0.02em; }
+  .brand img { border-radius: 6px; }
   .nav a:not(.logo), .scan-nav {
     flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     text-decoration: none; color: var(--muted); font-weight: 500; font-size: 0.7rem; border-radius: var(--r-sm);

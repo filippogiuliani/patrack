@@ -252,6 +252,8 @@ export default {
   "mail.senders": "Da quali indirizzi",
   "mail.senders_explain": "Accettiamo email solo da questi indirizzi (le altre vengono ignorate). Aggiungi ad esempio la tua email di lavoro.",
   "mail.title": "Importa via email",
+  "nav.apps": "Le app di famiglia",
+  "nav.home": "Home di famiglia",
   "nav.archive": "Archivio",
   "nav.family": "Famiglia",
   "nav.imports": "Importa",

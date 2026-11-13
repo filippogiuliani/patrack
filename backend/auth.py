@@ -201,6 +201,7 @@ def me():
             'hub': hub.public_info()}
     if not getattr(g, 'user', None):
         return jsonify(authenticated=False, **base)
+    base['hub'] = hub.public_info(getattr(g, 'family_id', None), g.user['id'])  # with the app switcher
     with db.transaction() as conn:
         password_hash, totp_on = conn.execute('SELECT password_hash, totp_secret IS NOT NULL FROM users WHERE id = ?',
                                               (g.user['id'],)).fetchone()

@@ -13,9 +13,9 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 . "$ROOT/scripts/backup.env"
 
-DATA="${PELICAN_DATA_DIR:-$ROOT/Pelican_data}"
+DATA="${PELICAN_DATA_DIR:-${PATRACK_DATA_DIR:-$ROOT/Pelican_data}}"   # PATRACK_DATA_DIR: the name before 2026-11
 # How to run Pelican's manage.py: in the container by default
-MANAGE="${PELICAN_MANAGE:-docker exec pelican python manage.py}"
+MANAGE="${PELICAN_MANAGE:-${PATRACK_MANAGE:-docker exec pelican python manage.py}}"
 STATUS="$DATA/offsite.json"
 LOG="$DATA/offsite.log"
 export BORG_REPO BORG_PASSPHRASE BORG_RSH="${BORG_RSH:-ssh}"

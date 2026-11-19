@@ -27,6 +27,15 @@
     catch (e) { showError(e); codes[r.person_id] = r.tax_code ?? ''; }
   }
 
+  // Reviewing what goes in a person's PDF: take out a wrong one, put in one the automatic reading missed
+  let reviewing = $state(null);   // person_id
+  let more = $state('');
+  async function include(d, value) {
+    try { await put(`/tax/receipts/${d.id}`, { include: value }); await load(); } catch (e) { showError(e); }
+  }
+  const docLine = (d) => [fmtDate(d.doc_date), d.amount_cents == null ? null : fmtAmount(d.amount_cents), d.kind ? t('tax.kind.' + d.kind) : null].filter(Boolean).join(' · ');
+  const others = (r) => r.documents.filter((d) => !d.included && (!more.trim() || `${d.doc_type} ${d.title} ${d.issuer ?? ''}`.toLowerCase().includes(more.trim().toLowerCase())));
+
   const docLabel = (d) => d.doc_type || d.title;
   const toggle = (kind) => (open = { ...open, [kind]: !open[kind] });
 </script>
@@ -86,7 +95,7 @@
     {/each}
     </div>
 
-    {#if data.receipts?.some((r) => r.count)}
+    {#if data.receipts?.some((r) => r.documents.length)}
       <section class="card receipts">
         <h2><Icon name="print" size={18} />{t('tax.receipts')}</h2>
         <p class="small muted">{t('tax.receipts_note')}</p>
@@ -96,9 +105,39 @@
               <span class="pname"><b>{r.name}</b><span class="muted small"> · {t('tax.receipts_n', { n: r.count })}</span></span>
               <input class="input cf" bind:value={codes[r.person_id]} maxlength="16" placeholder={t('tax.tax_code')} aria-label={t('tax.tax_code_of', { name: r.name })}
                      onchange={() => saveCode(r)} autocapitalize="characters" spellcheck="false" />
+              <button class="btn sm ghost" onclick={() => { reviewing = reviewing === r.person_id ? null : r.person_id; more = ''; }}
+                      aria-expanded={reviewing === r.person_id}>{t('tax.review')}</button>
               {#if r.count}
                 <a class="btn sm" href="/api/tax/receipts?year={data.year}&person={r.person_id}" download><Icon name="download" size={15} />PDF</a>
               {:else}<span class="btn sm ghost" aria-disabled="true">PDF</span>{/if}
+              {#if reviewing === r.person_id}
+                <div class="review">
+                  <p class="tiny muted">{t('tax.review_in', { n: r.count })}</p>
+                  <ul class="rlist">
+                    {#each r.documents.filter((d) => d.included) as d (d.id)}
+                      <li>
+                        <label class="check"><input type="checkbox" checked onchange={() => include(d, false)} />
+                          <span class="grow"><a href="#/doc/{d.id}">{docLabel(d)}</a><span class="muted small"> · {docLine(d)}</span></span></label>
+                        {#if d.by_hand}<button class="linkish tiny" onclick={() => include(d, null)} title={t('tax.review_reset_title')}>{t('tax.review_by_hand')} ↺</button>{/if}
+                      </li>
+                    {:else}<li class="muted small">{t('tax.review_none')}</li>{/each}
+                  </ul>
+                  {#if r.documents.some((d) => !d.included)}
+                    <p class="tiny muted">{t('tax.review_others', { year: data.year })}</p>
+                    <input class="input sm" bind:value={more} placeholder={t('tax.review_filter')} aria-label={t('tax.review_filter')} />
+                    <ul class="rlist">
+                      {#each others(r).slice(0, 30) as d (d.id)}
+                        <li>
+                          <span class="grow"><a href="#/doc/{d.id}">{docLabel(d)}</a><span class="muted small"> · {docLine(d)}</span>
+                            {#if d.by_hand}<span class="tag">{t('tax.review_left_out')}</span>{/if}</span>
+                          <button class="btn sm" onclick={() => include(d, true)}><Icon name="plus" size={14} />{t('tax.review_add')}</button>
+                        </li>
+                      {/each}
+                      {#if others(r).length > 30}<li class="muted small">{t('tax.review_more', { n: others(r).length - 30 })}</li>{/if}
+                    </ul>
+                  {/if}
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -152,6 +191,15 @@
   .plist li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
   .pname { flex: 1; min-width: 10rem; }
   .cf { width: 13.5rem; max-width: 100%; font-family: ui-monospace, monospace; text-transform: uppercase; }
+  .review { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 4px; margin-top: 4px;
+    border-radius: var(--r-sm, 8px); background: var(--surface-2); }
+  .review p { margin: 6px 0 0; }
+  .rlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .rlist li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .rlist li:first-child { border-top: 0; }
+  .rlist label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .rlist a { color: var(--ink); }
+  .linkish { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
   .warnline { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: 8px 0 0; }
   .warn { margin-top: 16px; }
   .warn h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; }

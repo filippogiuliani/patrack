@@ -224,7 +224,8 @@ def init_db():
                                    ('dotrack_error', 'TEXT'),                   # why doTrack said no
                                    ('dotrack_by', 'INTEGER'),                   # who turned it on (doTrack is asked as them)
                                    ('eatrack_plan', 'INTEGER NOT NULL DEFAULT 0'),  # the paediatrician's plan, shown in eaTrack
-                                   ('tax_kind', 'TEXT')):                       # tax return: a kind, 'none', NULL = proposed
+                                   ('tax_kind', 'TEXT'),
+                                   ('tax_receipt', 'INTEGER')):                 # in the receipts' PDF: 1 yes, 0 no, NULL = proposed                       # tax return: a kind, 'none', NULL = proposed
             if column not in {r[1] for r in conn.execute('PRAGMA table_info(documents)')}:
                 conn.execute(f'ALTER TABLE documents ADD COLUMN {column} {definition}')
         # the tax code of a person: the receipts' sheets for the CAF are one per 730

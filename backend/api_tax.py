@@ -79,7 +79,7 @@ def _year():
 def _collect(conn, year):
     """The year's documents for the tax return and those that might be, but lack a date."""
     people = {r['id']: r['name'] for r in conn.execute('SELECT id, name FROM people WHERE family_id = ?', (g.family_id,))}
-    rows = conn.execute(f'''SELECT id, title, doc_type, issuer, category, person_id, doc_date, amount_cents, tax_kind, status,
+    rows = conn.execute(f'''SELECT id, title, doc_type, issuer, category, person_id, doc_date, amount_cents, tax_kind, tax_receipt, status,
                                    substr(ocr_text, 1, 2000) AS ocr_text, file_name, stored_name, mime
                             FROM documents WHERE family_id = ? AND deleted_at IS NULL
                             AND (doc_date IS NULL OR strftime('%Y', doc_date) = ?)''', (g.family_id, str(year))).fetchall()
@@ -90,7 +90,8 @@ def _collect(conn, year):
             continue
         item = {'id': r['id'], 'title': r['title'], 'doc_type': r['doc_type'], 'issuer': r['issuer'], 'doc_date': r['doc_date'],
                 'amount_cents': r['amount_cents'], 'person_id': r['person_id'], 'person': people.get(r['person_id']),
-                'kind': kind, 'chosen': chosen, 'file_name': r['file_name'], 'stored_name': r['stored_name'], 'mime': r['mime']}
+                'kind': kind, 'chosen': chosen, 'file_name': r['file_name'], 'stored_name': r['stored_name'], 'mime': r['mime'],
+                'tax_receipt': r['tax_receipt']}
         if r['doc_date']:
             found.append(item)
         elif chosen:
@@ -99,7 +100,7 @@ def _collect(conn, year):
 
 
 def _public(item):
-    return {k: v for k, v in item.items() if k not in ('stored_name', 'mime')}
+    return {k: v for k, v in item.items() if k not in ('stored_name', 'mime', 'tax_receipt')}
 
 
 @bp.get('/tax')
@@ -125,7 +126,7 @@ def summary():
         kinds.append({'kind': kind, 'total_cents': sum(d['amount_cents'] or 0 for d in docs), 'count': len(docs),
                       'people': sorted(by_person.values(), key=lambda p: (p['name'] is None, p['name'] or '')),
                       'documents': [_public(d) for d in docs]})
-    return jsonify(year=year, years=sorted(set(years) | {year}, reverse=True), kinds=kinds, receipts=_receipt_people(found),
+    return jsonify(year=year, years=sorted(set(years) | {year}, reverse=True), kinds=kinds, receipts=_receipt_people(year),
                    total_cents=sum(k['total_cents'] for k in kinds),
                    missing_amount=[_public(d) for d in found if d['amount_cents'] is None],
                    missing_date=[_public(d) for d in no_date])
@@ -182,30 +183,62 @@ def export():
 TAX_CODE = re.compile(r'^([A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]|[0-9]{11})$')
 
 
-def _is_receipt(d):
+_PAGE_SIZES = {}      # stored file → its first page's size (files never change: kept for the life of the process)
+
+
+def _guess_receipt(d):
     if receipts.looks_like_receipt(d):
         return True
     if (d.get('mime') or '') == 'application/pdf':
-        try:
-            return receipts.looks_like_receipt(d, receipts.pdf_page_size(storage.get(d['stored_name'])))
-        except Exception:
-            return False
+        if d['stored_name'] not in _PAGE_SIZES:
+            try:
+                _PAGE_SIZES[d['stored_name']] = receipts.pdf_page_size(storage.get(d['stored_name']))
+            except Exception:
+                _PAGE_SIZES[d['stored_name']] = None
+        return receipts.looks_like_receipt(d, _PAGE_SIZES[d['stored_name']])
     return False
 
 
-def _receipt_people(found):
-    """[{person_id, name, tax_code, count}] for the people with receipts this year; person_id None = nobody chosen."""
+def _year_docs(conn, year):
+    """Every document dated in the year (any of them can be put in the receipts by hand), with its kind or None."""
+    people = {r['id']: r['name'] for r in conn.execute('SELECT id, name FROM people WHERE family_id = ?', (g.family_id,))}
+    rows = conn.execute("""SELECT id, title, doc_type, issuer, category, person_id, doc_date, amount_cents, tax_kind, tax_receipt,
+                                  substr(ocr_text, 1, 2000) AS ocr_text, file_name, stored_name, mime
+                           FROM documents WHERE family_id = ? AND deleted_at IS NULL AND strftime('%Y', doc_date) = ?
+                           ORDER BY doc_date, id""", (g.family_id, str(year))).fetchall()
+    out = []
+    for r in rows:
+        kind, _ = kind_of(r)
+        out.append({'id': r['id'], 'title': r['title'], 'doc_type': r['doc_type'], 'issuer': r['issuer'], 'doc_date': r['doc_date'],
+                    'amount_cents': r['amount_cents'], 'person_id': r['person_id'], 'person': people.get(r['person_id']),
+                    'kind': kind, 'file_name': r['file_name'], 'stored_name': r['stored_name'], 'mime': r['mime'],
+                    'tax_receipt': r['tax_receipt']})
+    return out
+
+
+def _in_pdf(d):
+    """In the receipts' PDF: as chosen by hand; otherwise an expense for the tax return that looks like a receipt."""
+    if d['tax_receipt'] is not None:
+        return bool(d['tax_receipt'])
+    return bool(d['kind']) and _guess_receipt(d)
+
+
+def _receipt_people(year):
+    """[{person_id, name, tax_code, count, documents}]: documents = all of the person's year, each `included` (in the PDF)
+    and `by_hand`; person_id None = documents with nobody chosen (listed only when some would go in a PDF)."""
     with db.transaction() as conn:
         people = {r['id']: r for r in conn.execute('SELECT id, name, tax_code FROM people WHERE family_id = ?', (g.family_id,))}
-    counts = {}
-    for d in found:
-        if _is_receipt(d):
-            counts[d['person_id']] = counts.get(d['person_id'], 0) + 1
-    out = [{'person_id': pid, 'name': p['name'], 'tax_code': p['tax_code'], 'count': counts.get(pid, 0)}
+        docs = _year_docs(conn, year)
+    counts, lists = {}, {}
+    for d in docs:
+        inside = _in_pdf(d)
+        counts[d['person_id']] = counts.get(d['person_id'], 0) + inside
+        lists.setdefault(d['person_id'], []).append({**_public(d), 'included': inside, 'by_hand': d['tax_receipt'] is not None})
+    out = [{'person_id': pid, 'name': p['name'], 'tax_code': p['tax_code'], 'count': counts.get(pid, 0), 'documents': lists.get(pid, [])}
            for pid, p in people.items()]
     out.sort(key=lambda p: (-p['count'], p['name'].lower()))
     if counts.get(None):
-        out.append({'person_id': None, 'name': None, 'tax_code': None, 'count': counts[None]})
+        out.append({'person_id': None, 'name': None, 'tax_code': None, 'count': counts[None], 'documents': lists.get(None, [])})
     return out
 
 
@@ -221,6 +254,19 @@ def set_tax_code(pid):
     return jsonify(ok=True, tax_code=code or None)
 
 
+@bp.put('/tax/receipts/<int:doc_id>')
+def set_receipt(doc_id):
+    """{include: true | false | null}: in the receipts' PDF or not; null = as proposed."""
+    v = (request.get_json(silent=True) or {}).get('include')
+    if v not in (True, False, None):
+        abort(400, 'include: true, false or null')
+    with db.transaction() as conn:
+        if not conn.execute('UPDATE documents SET tax_receipt = ? WHERE id = ? AND family_id = ? AND deleted_at IS NULL',
+                            (None if v is None else int(v), doc_id, g.family_id)).rowcount:
+            abort(404, 'Document not found')
+    return jsonify(ok=True)
+
+
 @bp.get('/tax/receipts')
 def receipts_pdf():
     """?year=2025&person=3 → the person's receipts of that year on A4 sheets (PDF)."""
@@ -234,11 +280,11 @@ def receipts_pdf():
         person = conn.execute('SELECT id, name, tax_code FROM people WHERE id = ? AND family_id = ?', (pid, g.family_id)).fetchone()
         if not person:
             abort(404, 'Person not found')
-        found, _ = _collect(conn, year)
+        docs = _year_docs(conn, year)
     lang = i18n.language()
     items = []
-    for d in sorted((d for d in found if d['person_id'] == pid), key=lambda d: (d['doc_date'], d['id'])):
-        if not _is_receipt(d):
+    for d in docs:
+        if d['person_id'] != pid or not _in_pdf(d):
             continue
         try:
             pages = receipts.to_images(storage.get(d['stored_name']), d['mime'])
@@ -247,7 +293,7 @@ def receipts_pdf():
             continue
         day = '/'.join(reversed(d['doc_date'].split('-')))
         label = ' · '.join(x for x in (day, (_euro(d['amount_cents']) + ' €') if d['amount_cents'] is not None else '',
-                                        i18n.tr(KIND_NAMES[d['kind']], lang)) if x)
+                                        i18n.tr(KIND_NAMES[d['kind']], lang) if d['kind'] else (d['doc_type'] or d['title'])) if x)
         items += [(img, label) for img in pages]
     if not items:
         abort(404, 'No receipts for this person in this year')

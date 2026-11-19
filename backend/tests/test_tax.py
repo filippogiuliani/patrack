@@ -87,6 +87,27 @@ def test_receipts_on_a4_per_person(family):
     ok(f.c.put(f'/api/tax/people/{luca}', json={'tax_code': 'rssmra80a01h501u'}))
     assert next(r for r in ok(f.c.get('/api/tax?year=2025'))['receipts'] if r['person_id'] == luca)['tax_code'] == 'RSSMRA80A01H501U'
 
+    # the selection can be changed by hand: the A4 invoice put in, a receipt left out; null = back to the proposal
+    luca_row = lambda: next(r for r in ok(f.c.get('/api/tax?year=2025'))['receipts'] if r['person_id'] == luca)
+    docs = luca_row()['documents']
+    invoice = next(d for d in docs if d['doc_type'] == 'Fattura dentista')
+    assert len(docs) == 8 and not invoice['included'] and not invoice['by_hand']
+    ok(f.c.put(f"/api/tax/receipts/{invoice['id']}", json={'include': True}))
+    ok(f.c.put(f"/api/tax/receipts/{docs[0]['id']}", json={'include': False}))
+    row = luca_row()
+    assert row['count'] == 7 and next(d for d in row['documents'] if d['id'] == invoice['id'])['by_hand']
+    assert f.c.put(f"/api/tax/receipts/{invoice['id']}", json={'include': 'yes'}).status_code == 400
+    ok(f.c.put(f"/api/tax/receipts/{invoice['id']}", json={'include': None}))
+    ok(f.c.put(f"/api/tax/receipts/{docs[0]['id']}", json={'include': None}))
+    assert luca_row()['count'] == 7 and not any(d['by_hand'] for d in luca_row()['documents'])
+    # one the tax view did not find at all (a bill): listed too, and it can be put in
+    bill = _doc(f, 'Bolletta gas', doc_type='Bolletta gas', doc_date='2025-02-01', amount='60', person_id=luca)
+    row = luca_row()
+    assert next(d for d in row['documents'] if d['id'] == bill)['included'] is False
+    ok(f.c.put(f'/api/tax/receipts/{bill}', json={'include': True}))
+    assert luca_row()['count'] == 8
+    ok(f.c.put(f'/api/tax/receipts/{bill}', json={'include': None}))
+
     r = f.c.get(f'/api/tax/receipts?year=2025&person={luca}')
     assert r.status_code == 200 and r.mimetype == 'application/pdf' and 'paTrack-2025-Luca.pdf' in r.headers['Content-Disposition']
     import pypdfium2 as pdfium

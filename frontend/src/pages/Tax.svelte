@@ -1,8 +1,8 @@
 <script>
   // The year's expenses for the tax return (730), grouped by kind and person, and the ZIP for the CAF.
   // It collects, it does not compute deductions (see backend/api_tax.py).
-  import { get } from '../lib/api.js';
-  import { app, showError } from '../lib/store.svelte.js';
+  import { get, put } from '../lib/api.js';
+  import { app, showError, toast } from '../lib/store.svelte.js';
   import { t } from '../lib/i18n.svelte.js';
   import { fmtAmount } from '../lib/docs.js';
   import { fmtDate } from '../lib/date.js';
@@ -16,6 +16,16 @@
     try { data = await get(`/tax?year=${year}`); } catch (e) { showError(e); }
   }
   $effect(() => { year; app.version; load(); });
+
+  // Receipts on A4 for the CAF: one PDF per person, because the 730 is one per tax code
+  let codes = $state({});
+  $effect(() => { codes = Object.fromEntries((data?.receipts ?? []).filter((r) => r.person_id).map((r) => [r.person_id, r.tax_code ?? ''])); });
+  async function saveCode(r) {
+    const code = (codes[r.person_id] || '').replace(/\s+/g, '').toUpperCase();
+    if (code === (r.tax_code ?? '')) return;
+    try { const res = await put(`/tax/people/${r.person_id}`, { tax_code: code }); r.tax_code = res.tax_code; codes[r.person_id] = res.tax_code ?? ''; toast(t('common.saved')); }
+    catch (e) { showError(e); codes[r.person_id] = r.tax_code ?? ''; }
+  }
 
   const docLabel = (d) => d.doc_type || d.title;
   const toggle = (kind) => (open = { ...open, [kind]: !open[kind] });
@@ -76,6 +86,28 @@
     {/each}
     </div>
 
+    {#if data.receipts?.some((r) => r.count)}
+      <section class="card receipts">
+        <h2><Icon name="print" size={18} />{t('tax.receipts')}</h2>
+        <p class="small muted">{t('tax.receipts_note')}</p>
+        <ul class="plist">
+          {#each data.receipts.filter((r) => r.person_id) as r (r.person_id)}
+            <li>
+              <span class="pname"><b>{r.name}</b><span class="muted small"> · {t('tax.receipts_n', { n: r.count })}</span></span>
+              <input class="input cf" bind:value={codes[r.person_id]} maxlength="16" placeholder={t('tax.tax_code')} aria-label={t('tax.tax_code_of', { name: r.name })}
+                     onchange={() => saveCode(r)} autocapitalize="characters" spellcheck="false" />
+              {#if r.count}
+                <a class="btn sm" href="/api/tax/receipts?year={data.year}&person={r.person_id}" download><Icon name="download" size={15} />PDF</a>
+              {:else}<span class="btn sm ghost" aria-disabled="true">PDF</span>{/if}
+            </li>
+          {/each}
+        </ul>
+        {#if data.receipts.find((r) => !r.person_id)}
+          <p class="small warnline"><Icon name="alert" size={15} />{t('tax.receipts_nobody', { n: data.receipts.find((r) => !r.person_id).count })}</p>
+        {/if}
+      </section>
+    {/if}
+
     {#if data.missing_amount.length || data.missing_date.length}
       <section class="card warn">
         <h2><Icon name="alert" size={18} />{t('tax.to_complete')}</h2>
@@ -114,6 +146,13 @@
   .docs a:hover { background: var(--surface-2); }
   .grow { flex: 1; min-width: 0; }
   .tag { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-size: 0.75rem; }
+  .receipts { margin-top: 16px; }
+  .receipts h2, .warn h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+  .plist { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+  .plist li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
+  .pname { flex: 1; min-width: 10rem; }
+  .cf { width: 13.5rem; max-width: 100%; font-family: ui-monospace, monospace; text-transform: uppercase; }
+  .warnline { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: 8px 0 0; }
   .warn { margin-top: 16px; }
   .warn h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
   .warn .docs { padding: 0; }

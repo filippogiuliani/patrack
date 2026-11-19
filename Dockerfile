@@ -11,7 +11,7 @@ RUN npx vite build --outDir /web/dist
 # 2) Flask backend serving the API and the frontend, with Tesseract for OCR (Italian + English)
 FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 TZ=Europe/Rome
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata tesseract-ocr tesseract-ocr-ita tesseract-ocr-eng \
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata tesseract-ocr tesseract-ocr-ita tesseract-ocr-eng fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY backend/requirements.txt .

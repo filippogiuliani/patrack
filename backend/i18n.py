@@ -82,7 +82,7 @@ IT = {
     'Life and accident insurance': 'Assicurazioni vita e infortuni', "Children's sport": 'Sport dei ragazzi', 'Vet': 'Veterinario',
     'Home works and bonuses': 'Lavori in casa e bonus', 'Rent': 'Affitto', 'Donations': 'Donazioni', 'Other': 'Altro',
     'Kind': 'Tipo', 'Person': 'Persona', 'Date': 'Data', 'Document': 'Documento', 'Issuer': 'Emesso da',
-    'Amount (€)': 'Importo (€)', 'File': 'File', 'Whole family': 'Tutta la famiglia', 'summary': 'riepilogo',
+    'Amount (€)': 'Importo (€)', 'File': 'File', 'Whole family': 'Tutta la famiglia', 'Receipts': 'Scontrini', 'summary': 'riepilogo',
     'missing file': 'file mancante',
     'Invalid file': 'File non valido',
     'The file could not be archived': 'Non è stato possibile archiviare il file',

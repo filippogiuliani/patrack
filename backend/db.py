@@ -227,6 +227,9 @@ def init_db():
                                    ('tax_kind', 'TEXT')):                       # tax return: a kind, 'none', NULL = proposed
             if column not in {r[1] for r in conn.execute('PRAGMA table_info(documents)')}:
                 conn.execute(f'ALTER TABLE documents ADD COLUMN {column} {definition}')
+        # the tax code of a person: the receipts' sheets for the CAF are one per 730
+        if 'tax_code' not in {r[1] for r in conn.execute('PRAGMA table_info(people)')}:
+            conn.execute('ALTER TABLE people ADD COLUMN tax_code TEXT')
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_families_hub ON families(hub_id)')
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_hub ON users(hub_id)')
         conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')

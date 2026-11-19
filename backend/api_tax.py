@@ -15,6 +15,7 @@ import zipfile
 from flask import Blueprint, Response, abort, g, jsonify, request
 
 import db
+import receipts
 import storage
 
 bp = Blueprint('tax', __name__)
@@ -89,7 +90,7 @@ def _collect(conn, year):
             continue
         item = {'id': r['id'], 'title': r['title'], 'doc_type': r['doc_type'], 'issuer': r['issuer'], 'doc_date': r['doc_date'],
                 'amount_cents': r['amount_cents'], 'person_id': r['person_id'], 'person': people.get(r['person_id']),
-                'kind': kind, 'chosen': chosen, 'file_name': r['file_name'], 'stored_name': r['stored_name']}
+                'kind': kind, 'chosen': chosen, 'file_name': r['file_name'], 'stored_name': r['stored_name'], 'mime': r['mime']}
         if r['doc_date']:
             found.append(item)
         elif chosen:
@@ -98,7 +99,7 @@ def _collect(conn, year):
 
 
 def _public(item):
-    return {k: v for k, v in item.items() if k != 'stored_name'}
+    return {k: v for k, v in item.items() if k not in ('stored_name', 'mime')}
 
 
 @bp.get('/tax')
@@ -124,7 +125,7 @@ def summary():
         kinds.append({'kind': kind, 'total_cents': sum(d['amount_cents'] or 0 for d in docs), 'count': len(docs),
                       'people': sorted(by_person.values(), key=lambda p: (p['name'] is None, p['name'] or '')),
                       'documents': [_public(d) for d in docs]})
-    return jsonify(year=year, years=sorted(set(years) | {year}, reverse=True), kinds=kinds,
+    return jsonify(year=year, years=sorted(set(years) | {year}, reverse=True), kinds=kinds, receipts=_receipt_people(found),
                    total_cents=sum(k['total_cents'] for k in kinds),
                    missing_amount=[_public(d) for d in found if d['amount_cents'] is None],
                    missing_date=[_public(d) for d in no_date])
@@ -173,4 +174,85 @@ def export():
         z.writestr(i18n.tr('summary', lang) + f'-{year}.csv', '﻿' + summary_csv.getvalue())
     resp = Response(buf.getvalue(), mimetype='application/zip')
     resp.headers['Content-Disposition'] = f'attachment; filename="paTrack-{year}.zip"'
+    return resp
+
+
+# ---------- the receipts on A4, one PDF per person (per tax code) ----------
+
+TAX_CODE = re.compile(r'^([A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]|[0-9]{11})$')
+
+
+def _is_receipt(d):
+    if receipts.looks_like_receipt(d):
+        return True
+    if (d.get('mime') or '') == 'application/pdf':
+        try:
+            return receipts.looks_like_receipt(d, receipts.pdf_page_size(storage.get(d['stored_name'])))
+        except Exception:
+            return False
+    return False
+
+
+def _receipt_people(found):
+    """[{person_id, name, tax_code, count}] for the people with receipts this year; person_id None = nobody chosen."""
+    with db.transaction() as conn:
+        people = {r['id']: r for r in conn.execute('SELECT id, name, tax_code FROM people WHERE family_id = ?', (g.family_id,))}
+    counts = {}
+    for d in found:
+        if _is_receipt(d):
+            counts[d['person_id']] = counts.get(d['person_id'], 0) + 1
+    out = [{'person_id': pid, 'name': p['name'], 'tax_code': p['tax_code'], 'count': counts.get(pid, 0)}
+           for pid, p in people.items()]
+    out.sort(key=lambda p: (-p['count'], p['name'].lower()))
+    if counts.get(None):
+        out.append({'person_id': None, 'name': None, 'tax_code': None, 'count': counts[None]})
+    return out
+
+
+@bp.put('/tax/people/<int:pid>')
+def set_tax_code(pid):
+    """{tax_code}: kept here (also when the family is managed in weHub): it is only for the tax return."""
+    code = re.sub(r'\s+', '', str((request.get_json(silent=True) or {}).get('tax_code') or '')).upper()
+    if code and not TAX_CODE.match(code):
+        abort(400, 'This is not a tax code')
+    with db.transaction() as conn:
+        if not conn.execute('UPDATE people SET tax_code = ? WHERE id = ? AND family_id = ?', (code or None, pid, g.family_id)).rowcount:
+            abort(404, 'Person not found')
+    return jsonify(ok=True, tax_code=code or None)
+
+
+@bp.get('/tax/receipts')
+def receipts_pdf():
+    """?year=2025&person=3 → the person's receipts of that year on A4 sheets (PDF)."""
+    import i18n
+    year = _year()
+    try:
+        pid = int(request.args.get('person') or 0)
+    except ValueError:
+        pid = 0
+    with db.transaction() as conn:
+        person = conn.execute('SELECT id, name, tax_code FROM people WHERE id = ? AND family_id = ?', (pid, g.family_id)).fetchone()
+        if not person:
+            abort(404, 'Person not found')
+        found, _ = _collect(conn, year)
+    lang = i18n.language()
+    items = []
+    for d in sorted((d for d in found if d['person_id'] == pid), key=lambda d: (d['doc_date'], d['id'])):
+        if not _is_receipt(d):
+            continue
+        try:
+            pages = receipts.to_images(storage.get(d['stored_name']), d['mime'])
+        except Exception as e:   # one unreadable file must not stop the others
+            print(f"[tax] receipt {d['id']}: {e}", flush=True)
+            continue
+        day = '/'.join(reversed(d['doc_date'].split('-')))
+        label = ' · '.join(x for x in (day, (_euro(d['amount_cents']) + ' €') if d['amount_cents'] is not None else '',
+                                        i18n.tr(KIND_NAMES[d['kind']], lang)) if x)
+        items += [(img, label) for img in pages]
+    if not items:
+        abort(404, 'No receipts for this person in this year')
+    title = ' · '.join(x for x in (person['name'], person['tax_code'] and f"CF {person['tax_code']}",
+                                    i18n.tr('Receipts', lang) + f' {year}') if x)
+    resp = Response(receipts.build_pdf(items, title), mimetype='application/pdf')
+    resp.headers['Content-Disposition'] = f'attachment; filename="paTrack-{year}-{_safe(person["name"], 40)}.pdf"'
     return resp

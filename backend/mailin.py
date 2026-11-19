@@ -1,13 +1,13 @@
 """Import by email: forward a message to the archive address and its attachments become documents.
 
-paTrack reads a dedicated mailbox over IMAP every minute (no port to open on the server):
-  PATRACK_INBOX_ADDRESS     the address people forward to, shown in the app (e.g. archivio@example.com)
-  PATRACK_IMAP_HOST / _PORT (993) / _USER / _PASSWORD / _FOLDER (INBOX)
-  PATRACK_IMAP_DONE_FOLDER  optional: handled messages are moved there (otherwise they are only marked as read)
-  PATRACK_IMAP_REQUIRE_AUTH 1 (default): accept only messages whose sender passed SPF or DKIM, according to the
+Pelican reads a dedicated mailbox over IMAP every minute (no port to open on the server):
+  PELICAN_INBOX_ADDRESS     the address people forward to, shown in the app (e.g. archivio@example.com)
+  PELICAN_IMAP_HOST / _PORT (993) / _USER / _PASSWORD / _FOLDER (INBOX)
+  PELICAN_IMAP_DONE_FOLDER  optional: handled messages are moved there (otherwise they are only marked as read)
+  PELICAN_IMAP_REQUIRE_AUTH 1 (default): accept only messages whose sender passed SPF or DKIM, according to the
                             Authentication-Results header added by the receiving mail server
 
-Who can send: the email address of a paTrack account, or one of the extra addresses a user added. The documents go
+Who can send: the email address of a Pelican account, or one of the extra addresses a user added. The documents go
 to that user's (first) family. Unknown senders are ignored and get no answer (no backscatter). Known senders get one
 email back when every file of the message has an outcome: what was imported, what was a duplicate, what failed."""
 import datetime
@@ -26,15 +26,15 @@ import i18n
 import imports
 from famkit import mail
 
-ADDRESS = os.environ.get('PATRACK_INBOX_ADDRESS', '').strip()
-HOST = os.environ.get('PATRACK_IMAP_HOST', '')
-PORT = int(os.environ.get('PATRACK_IMAP_PORT', '993'))
-USER = os.environ.get('PATRACK_IMAP_USER', '')
-PASSWORD = os.environ.get('PATRACK_IMAP_PASSWORD', '')
-FOLDER = os.environ.get('PATRACK_IMAP_FOLDER', 'INBOX')
-DONE_FOLDER = os.environ.get('PATRACK_IMAP_DONE_FOLDER', '')
-REQUIRE_AUTH = os.environ.get('PATRACK_IMAP_REQUIRE_AUTH', '1') not in ('0', 'off', 'false', 'no')
-INTERVAL = int(os.environ.get('PATRACK_IMAP_INTERVAL', '60'))
+ADDRESS = os.environ.get('PELICAN_INBOX_ADDRESS', '').strip()
+HOST = os.environ.get('PELICAN_IMAP_HOST', '')
+PORT = int(os.environ.get('PELICAN_IMAP_PORT', '993'))
+USER = os.environ.get('PELICAN_IMAP_USER', '')
+PASSWORD = os.environ.get('PELICAN_IMAP_PASSWORD', '')
+FOLDER = os.environ.get('PELICAN_IMAP_FOLDER', 'INBOX')
+DONE_FOLDER = os.environ.get('PELICAN_IMAP_DONE_FOLDER', '')
+REQUIRE_AUTH = os.environ.get('PELICAN_IMAP_REQUIRE_AUTH', '1') not in ('0', 'off', 'false', 'no')
+INTERVAL = int(os.environ.get('PELICAN_IMAP_INTERVAL', '60'))
 
 # Small inline images are logos and signatures, not documents
 MIN_INLINE_IMAGE = 40 * 1024
@@ -224,7 +224,7 @@ def check_mailbox():
 
 def start_poller():
     if not enabled():
-        print('[mailin] email import off (PATRACK_IMAP_HOST/USER/PASSWORD not set)', flush=True)
+        print('[mailin] email import off (PELICAN_IMAP_HOST/USER/PASSWORD not set)', flush=True)
         return
 
     def loop():

@@ -174,7 +174,7 @@ def export():
                         d['doc_type'] or d['title'], d['issuer'], _euro(d['amount_cents']), path])
         z.writestr(i18n.tr('summary', lang) + f'-{year}.csv', '﻿' + summary_csv.getvalue())
     resp = Response(buf.getvalue(), mimetype='application/zip')
-    resp.headers['Content-Disposition'] = f'attachment; filename="paTrack-{year}.zip"'
+    resp.headers['Content-Disposition'] = f'attachment; filename="Pelican-{year}.zip"'
     return resp
 
 
@@ -244,7 +244,7 @@ def _receipt_people(year):
 
 @bp.put('/tax/people/<int:pid>')
 def set_tax_code(pid):
-    """{tax_code}: kept here (also when the family is managed in weHub): it is only for the tax return."""
+    """{tax_code}: kept here (also when the family is managed in Wombat): it is only for the tax return."""
     code = re.sub(r'\s+', '', str((request.get_json(silent=True) or {}).get('tax_code') or '')).upper()
     if code and not TAX_CODE.match(code):
         abort(400, 'This is not a tax code')
@@ -300,5 +300,5 @@ def receipts_pdf():
     title = ' · '.join(x for x in (person['name'], person['tax_code'] and f"CF {person['tax_code']}",
                                     i18n.tr('Receipts', lang) + f' {year}') if x)
     resp = Response(receipts.build_pdf(items, title), mimetype='application/pdf')
-    resp.headers['Content-Disposition'] = f'attachment; filename="paTrack-{year}-{_safe(person["name"], 40)}.pdf"'
+    resp.headers['Content-Disposition'] = f'attachment; filename="Pelican-{year}-{_safe(person["name"], 40)}.pdf"'
     return resp

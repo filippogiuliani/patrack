@@ -7,7 +7,7 @@ export const LANGUAGES = [
   { id: 'en', name: 'English' },
 ];
 const DICTIONARIES = { it, en };
-const STORAGE_KEY = 'patrack.language';
+const STORAGE_KEY = 'pelican.language';
 
 export const DEFAULT_LANGUAGE = 'it';
 // Browser preferences, e.g. ['pt-BR', 'pt', 'en-US']

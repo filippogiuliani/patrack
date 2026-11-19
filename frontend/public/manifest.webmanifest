@@ -1,6 +1,6 @@
 {
-  "name": "paTrack – Archivio dei documenti di famiglia",
-  "short_name": "paTrack",
+  "name": "Pelican – Archivio dei documenti di famiglia",
+  "short_name": "Pelican",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f8fa",

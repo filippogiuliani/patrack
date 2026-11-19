@@ -19,7 +19,7 @@
     form = {
       title: d.title, category: d.category ?? '', doc_type: d.doc_type, person_id: d.person_id ?? '', doc_date: d.doc_date ?? '',
       expiry_date: d.expiry_date ?? '', amount: amountInput(d.amount_cents), issuer: d.issuer, notes: d.notes,
-      dotrack: !!d.dotrack, dotrack_remind: d.dotrack_remind ?? '', eatrack_plan: !!d.eatrack_plan, tax_kind: d.tax_kind ?? '',
+      kooka: !!d.kooka, kooka_remind: d.kooka_remind ?? '', wallaby_plan: !!d.wallaby_plan, tax_kind: d.tax_kind ?? '',
     };
   }
   async function load() {
@@ -43,12 +43,12 @@
     form.title !== doc.title || (form.category || null) !== doc.category || form.doc_type !== doc.doc_type ||
     (form.person_id || null) !== doc.person_id || (form.doc_date || null) !== doc.doc_date ||
     (form.expiry_date || null) !== doc.expiry_date || form.amount !== amountInput(doc.amount_cents) ||
-    form.issuer !== doc.issuer || form.notes !== doc.notes || form.dotrack !== !!doc.dotrack ||
-    (form.dotrack_remind === '' ? null : Number(form.dotrack_remind)) !== doc.dotrack_remind || form.eatrack_plan !== !!doc.eatrack_plan ||
+    form.issuer !== doc.issuer || form.notes !== doc.notes || form.kooka !== !!doc.kooka ||
+    (form.kooka_remind === '' ? null : Number(form.kooka_remind)) !== doc.kooka_remind || form.wallaby_plan !== !!doc.wallaby_plan ||
     (form.tax_kind || null) !== doc.tax_kind));
   const TAX_KINDS = ['medical', 'school', 'mortgage', 'insurance', 'sport', 'vet', 'home_works', 'rent', 'donations', 'other'];
 
-  // The other family apps (weHub mode): only those this person may use
+  // The other family apps (Wombat mode): only those this person may use
   const usesApp = (id) => (app.me.hub?.apps ?? []).some((a) => a.id === id);
   const chosenPerson = $derived(app.me.people.find((p) => p.id === form?.person_id));
   const REMIND_DAYS = [0, 7, 30, 60, 90];
@@ -57,7 +57,7 @@
     saving = true;
     try {
       fill(await put(`/documents/${id}`, { ...form, person_id: form.person_id || null, category: form.category || null,
-        dotrack_remind: form.dotrack_remind === '' ? null : Number(form.dotrack_remind), tax_kind: form.tax_kind || null }));
+        kooka_remind: form.kooka_remind === '' ? null : Number(form.kooka_remind), tax_kind: form.tax_kind || null }));
       toast(t('common.saved'));
       loadFacets();
       if (close) onclose();
@@ -176,28 +176,28 @@
             </select></label>
         </div>
 
-        {#if usesApp('dotrack') && (form.expiry_date || form.dotrack)}
+        {#if usesApp('kooka') && (form.expiry_date || form.kooka)}
           <div class="field link-box">
-            <label class="toggle ok"><input type="checkbox" bind:checked={form.dotrack} />{t('doc.dotrack')}</label>
-            {#if form.dotrack}
-              <label class="inline small"><span>{t('doc.dotrack_remind')}</span>
-                <select class="input sm" bind:value={form.dotrack_remind}>
-                  <option value="">{t('doc.dotrack_no_reminder')}</option>
-                  {#each REMIND_DAYS as n}<option value={n}>{n === 0 ? t('doc.dotrack_same_day') : t('doc.dotrack_days_before', { n })}</option>{/each}
+            <label class="toggle ok"><input type="checkbox" bind:checked={form.kooka} />{t('doc.kooka')}</label>
+            {#if form.kooka}
+              <label class="inline small"><span>{t('doc.kooka_remind')}</span>
+                <select class="input sm" bind:value={form.kooka_remind}>
+                  <option value="">{t('doc.kooka_no_reminder')}</option>
+                  {#each REMIND_DAYS as n}<option value={n}>{n === 0 ? t('doc.kooka_same_day') : t('doc.kooka_days_before', { n })}</option>{/each}
                 </select></label>
             {/if}
-            {#if doc.dotrack && !dirty}
-              {#if doc.dotrack_state === 'sent'}<span class="tiny muted">✓ {t('doc.dotrack_sent')}</span>
-              {:else if doc.dotrack_state === 'pending'}<span class="tiny muted">{t('doc.dotrack_pending')}</span>
-              {:else if doc.dotrack_state === 'error'}<span class="tiny danger">{doc.dotrack_error}</span>{/if}
+            {#if doc.kooka && !dirty}
+              {#if doc.kooka_state === 'sent'}<span class="tiny muted">✓ {t('doc.kooka_sent')}</span>
+              {:else if doc.kooka_state === 'pending'}<span class="tiny muted">{t('doc.kooka_pending')}</span>
+              {:else if doc.kooka_state === 'error'}<span class="tiny danger">{doc.kooka_error}</span>{/if}
             {/if}
-            {#if !form.expiry_date && form.dotrack}<span class="tiny muted">{t('doc.dotrack_needs_expiry')}</span>{/if}
+            {#if !form.expiry_date && form.kooka}<span class="tiny muted">{t('doc.kooka_needs_expiry')}</span>{/if}
           </div>
         {/if}
-        {#if usesApp('eatrack') && (form.eatrack_plan || (chosenPerson && !chosenPerson.user_id))}
+        {#if usesApp('wallaby') && (form.wallaby_plan || (chosenPerson && !chosenPerson.user_id))}
           <div class="field link-box">
-            <label class="toggle ok"><input type="checkbox" bind:checked={form.eatrack_plan} />{t('doc.eatrack_plan')}</label>
-            <span class="tiny muted">{t('doc.eatrack_plan_note')}</span>
+            <label class="toggle ok"><input type="checkbox" bind:checked={form.wallaby_plan} />{t('doc.wallaby_plan')}</label>
+            <span class="tiny muted">{t('doc.wallaby_plan_note')}</span>
           </div>
         {/if}
 

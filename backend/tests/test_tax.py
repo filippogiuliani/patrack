@@ -54,7 +54,7 @@ def test_tax_export_zip(family):
     _doc(f, 'Retta asilo nido', doc_type='Retta asilo nido', doc_date='2025-09-01', amount='300')
     r = f.c.get('/api/tax/export?year=2025')
     assert r.status_code == 200 and r.mimetype == 'application/zip'
-    assert 'paTrack-2025.zip' in r.headers['Content-Disposition']
+    assert 'Pelican-2025.zip' in r.headers['Content-Disposition']
     z = zipfile.ZipFile(io.BytesIO(r.data))
     names = sorted(z.namelist())
     assert names == ['Scuola e asilo nido/2025-09-01 Retta asilo nido.pdf', 'Spese sanitarie/2025-03-10 Scontrino farmacia (2).pdf',
@@ -109,7 +109,7 @@ def test_receipts_on_a4_per_person(family):
     ok(f.c.put(f'/api/tax/receipts/{bill}', json={'include': None}))
 
     r = f.c.get(f'/api/tax/receipts?year=2025&person={luca}')
-    assert r.status_code == 200 and r.mimetype == 'application/pdf' and 'paTrack-2025-Luca.pdf' in r.headers['Content-Disposition']
+    assert r.status_code == 200 and r.mimetype == 'application/pdf' and 'Pelican-2025-Luca.pdf' in r.headers['Content-Disposition']
     import pypdfium2 as pdfium
     pdf = pdfium.PdfDocument(r.data)
     w, h = pdf[0].get_size()

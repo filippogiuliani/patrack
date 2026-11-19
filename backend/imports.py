@@ -24,7 +24,7 @@ from common import text
 
 bp = Blueprint('imports', __name__)
 
-MAX_FILE = int(os.environ.get('PATRACK_MAX_FILE_MB', '50')) * 1024 * 1024
+MAX_FILE = int(os.environ.get('PELICAN_MAX_FILE_MB', '50')) * 1024 * 1024
 MAX_ATTEMPTS_AUTO = 1  # the worker never retries on its own: the user sees the error and taps "Riprova"
 _wake = threading.Event()
 

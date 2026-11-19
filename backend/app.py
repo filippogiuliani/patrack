@@ -1,4 +1,4 @@
-"""paTrack – Flask server: JSON API under /api and the built frontend (Svelte) as static files."""
+"""Pelican – Flask server: JSON API under /api and the built frontend (Svelte) as static files."""
 import datetime
 import os
 import secrets
@@ -35,8 +35,8 @@ MAX_UPLOAD = imports.MAX_FILE + 1024 * 1024
 
 
 def _secret_key():
-    if os.environ.get('PATRACK_SECRET_KEY'):
-        return os.environ['PATRACK_SECRET_KEY']
+    if os.environ.get('PELICAN_SECRET_KEY'):
+        return os.environ['PELICAN_SECRET_KEY']
     path = os.path.join(db.DATA_DIR, '.secret_key')
     if not os.path.exists(path):
         os.makedirs(db.DATA_DIR, exist_ok=True)
@@ -53,15 +53,15 @@ def create_app():
     app = Flask(__name__, static_folder=None)
     app.secret_key = _secret_key()
     app.config.update(
-        SESSION_COOKIE_NAME='patrack_session',
+        SESSION_COOKIE_NAME='pelican_session',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
-        SESSION_COOKIE_SECURE=os.environ.get('PATRACK_COOKIE_SECURE') == '1',
-        PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=int(os.environ.get('PATRACK_SESSION_DAYS', '30'))),
+        SESSION_COOKIE_SECURE=os.environ.get('PELICAN_COOKIE_SECURE') == '1',
+        PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=int(os.environ.get('PELICAN_SESSION_DAYS', '30'))),
         MAX_CONTENT_LENGTH=MAX_UPLOAD,
         JSON_AS_ASCII=False,
     )
-    if os.environ.get('PATRACK_PROXY') == '1':
+    if os.environ.get('PELICAN_PROXY') == '1':
         # Behind a reverse proxy (nginx, Caddy, Traefik) that terminates HTTPS
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -161,9 +161,9 @@ if __name__ == '__main__':
     links.start_worker()
     port = int(os.environ.get('PORT', '3002'))
     if not auth.PASSWORD_LOGIN and not oidc.PROVIDERS:
-        print('[paTrack] WARNING: password sign-in is off and no OIDC provider is configured: nobody can sign in', flush=True)
-    print(f'[paTrack] listening on http://0.0.0.0:{port} – sign-up '
+        print('[Pelican] WARNING: password sign-in is off and no OIDC provider is configured: nobody can sign in', flush=True)
+    print(f'[Pelican] listening on http://0.0.0.0:{port} – sign-up '
           f'{"open" if auth.SIGNUP_OPEN else "by invitation only"}', flush=True)
     proxy = {'trusted_proxy': '*', 'trusted_proxy_headers': {'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host'}} \
-        if os.environ.get('PATRACK_PROXY') == '1' else {}
+        if os.environ.get('PELICAN_PROXY') == '1' else {}
     serve(app, host='0.0.0.0', port=port, threads=8, **proxy)

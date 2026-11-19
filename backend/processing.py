@@ -12,8 +12,8 @@ from email import policy
 from email.parser import BytesParser
 from html import unescape
 
-OCR_LANGS = os.environ.get('PATRACK_OCR_LANGS', 'ita+eng')
-OCR_TIMEOUT = int(os.environ.get('PATRACK_OCR_TIMEOUT', '180'))  # seconds per page
+OCR_LANGS = os.environ.get('PELICAN_OCR_LANGS', 'ita+eng')
+OCR_TIMEOUT = int(os.environ.get('PELICAN_OCR_TIMEOUT', '180'))  # seconds per page
 MAX_TEXT_PAGES = 300
 MAX_OCR_PAGES = 40
 OCR_DPI = 300
@@ -88,7 +88,7 @@ def ocr_image(img):
     if max(gray.size) < 1600:
         f = 1600 / max(gray.size)
         gray = gray.resize((int(gray.width * f), int(gray.height * f)))
-    with tempfile.TemporaryDirectory(prefix='patrack-ocr-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='pelican-ocr-') as tmp:
         path = os.path.join(tmp, 'page.png')
         gray.save(path)
         try:

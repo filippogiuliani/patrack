@@ -54,11 +54,11 @@
   $effect(() => { if (NAV.includes(page)) lastSection = page; });
   const openDoc = $derived(authenticated && route.name === 'doc' ? Number(route.param) : null);
   function closeDoc() {
-    if (history.length > 1 && sessionStorage.getItem('patrack.inapp')) history.back();
+    if (history.length > 1 && sessionStorage.getItem('pelican.inapp')) history.back();
     else location.hash = '#/' + lastSection;
   }
   // Remember that we navigated inside the app (so closing a document can go "back")
-  $effect(() => { try { sessionStorage.setItem('patrack.inapp', '1'); } catch { /* ignore */ } });
+  $effect(() => { try { sessionStorage.setItem('pelican.inapp', '1'); } catch { /* ignore */ } });
 
   const fast = $derived(app.sync.active > 0 || pendingUploads() > 0);
   // Every few seconds while in view: has anything changed in the family, how is the import queue?
@@ -172,7 +172,7 @@
 {:else}
   <div class="shell">
     <nav class="nav" aria-label={t('nav.sections')}>
-      <a class="logo" href="#/archive"><img src="/icon.svg" alt="" width="28" height="28" /><span>paTrack</span></a>
+      <a class="logo" href="#/archive"><img src="/icon.svg" alt="" width="28" height="28" /><span>Pelican</span></a>
       <div class="nav-apps hide-mobile"><AppSwitcher hub={app.me.hub} lang={language.id} label /></div>
       {#each NAV as id (id)}
         <a href="#/{id}" class:on={page === id} aria-current={page === id ? 'page' : undefined}>
@@ -189,9 +189,9 @@
       </button>
     </nav>
     <main class="main">
-      <!-- Phone: a slim top bar, so the other apps and signing out are always one tap away (as in doTrack/eaTrack) -->
+      <!-- Phone: a slim top bar, so the other apps and signing out are always one tap away (as in Kooka/Wallaby) -->
       <div class="topbar hide-desktop">
-        <a class="brand" href="#/archive"><img src="/icon.svg" alt="" width="24" height="24" /><span>paTrack</span></a>
+        <a class="brand" href="#/archive"><img src="/icon.svg" alt="" width="24" height="24" /><span>Pelican</span></a>
         <AppSwitcher hub={app.me.hub} lang={language.id} />
         <span class="grow"></span>
         <button class="btn ghost sm" onclick={() => logout()} aria-label={t('account.sign_out')}>

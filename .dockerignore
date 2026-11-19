@@ -2,7 +2,7 @@
 **/node_modules
 backend/static
 backend/data
-paTrack_data
+Pelican_data
 .env
 **/__pycache__
 backend/tests

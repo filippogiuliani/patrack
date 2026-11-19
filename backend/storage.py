@@ -3,7 +3,7 @@
 Each file lives in DATA_DIR/files/<2 chars>/<random name>.bin as: b'PTK1' + 12-byte nonce + ciphertext + tag.
 The stored name is bound as associated data, so a file cannot be swapped for another one unnoticed.
 
-The key is 32 random bytes in PATRACK_KEY_FILE (default DATA_DIR/.file_key), created on first start.
+The key is 32 random bytes in PELICAN_KEY_FILE (default DATA_DIR/.file_key), created on first start.
 Without it the files cannot be read: keep a copy somewhere else (the NAS backup script includes it, inside the
 encrypted Borg repository)."""
 import os
@@ -23,7 +23,7 @@ def files_dir():
 
 
 def key_path():
-    return os.environ.get('PATRACK_KEY_FILE') or os.path.join(db.DATA_DIR, '.file_key')
+    return os.environ.get('PELICAN_KEY_FILE') or os.path.join(db.DATA_DIR, '.file_key')
 
 
 def _load_key():
@@ -78,7 +78,7 @@ def get(stored_name: str) -> bytes:
     with open(_path(stored_name), 'rb') as f:
         blob = f.read()
     if blob[:4] != MAGIC:
-        raise ValueError('not a paTrack file')
+        raise ValueError('not a Pelican file')
     return AESGCM(_load_key()).decrypt(blob[4:16], blob[16:], stored_name.encode())
 
 

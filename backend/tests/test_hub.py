@@ -1,4 +1,4 @@
-"""weHub mode for paTrack: members and people come from weHub (simulated here); documents keep their person."""
+"""Wombat mode for Pelican: members and people come from Wombat (simulated here); documents keep their person."""
 import pytest
 from flask import redirect
 
@@ -13,7 +13,7 @@ KEY = 'k' * 40
 
 
 class FakeHub:
-    """Stands in for weHub's service API."""
+    """Stands in for Wombat's service API."""
 
     def __init__(self):
         self.users = {}       # (issuer, subject) or email → user
@@ -47,9 +47,9 @@ class FakeProvider:
 
 
 @pytest.fixture
-def wehub(app, monkeypatch):
+def wombat(app, monkeypatch):
     fake = FakeHub()
-    monkeypatch.setattr(hub, 'URL', 'http://wehub.test')
+    monkeypatch.setattr(hub, 'URL', 'http://wombat.test')
     monkeypatch.setattr(hub, 'KEY', KEY)
     monkeypatch.setattr(hub, '_call', fake)
     monkeypatch.setattr(auth, 'PASSWORD_LOGIN', False)
@@ -78,29 +78,29 @@ def sign_in(c, fake, email, sub=None):
     return r.headers['Location'].split('#/', 1)[1]
 
 
-def test_sign_in_creates_family_and_people(client, wehub):
+def test_sign_in_creates_family_and_people(client, wombat):
     fil, sara = user(10, 'Fil', 'fil@example.com'), user(11, 'Sara', 'sara@example.com')
-    wehub.users = {'fil@example.com': fil, 'sara@example.com': sara}
-    family(wehub, members=[{**fil, 'role': 'admin'}],
+    wombat.users = {'fil@example.com': fil, 'sara@example.com': sara}
+    family(wombat, members=[{**fil, 'role': 'admin'}],
            people=[{'hub_id': 100, 'name': 'Fil', 'user_hub_id': 10}, {'hub_id': 101, 'name': 'Sara', 'user_hub_id': 11},
                    {'hub_id': 102, 'name': 'Luca', 'kind': 'child', 'birth_date': '2025-01-10', 'user_hub_id': None}])
-    wehub.access = {10: [1]}
+    wombat.access = {10: [1]}
     c = client()
-    assert sign_in(c, wehub, 'fil@example.com') == ''
+    assert sign_in(c, wombat, 'fil@example.com') == ''
     me = ok(c.get('/api/me'))
     people = {p['name']: p for p in me['people']}
     assert set(people) == {'Fil', 'Sara', 'Luca'}
-    assert people['Fil']['user_id'] == me['user']['id'] and people['Sara']['user_id'] is None   # Sara: no paTrack access
+    assert people['Fil']['user_id'] == me['user']['id'] and people['Sara']['user_id'] is None   # Sara: no Pelican access
     assert people['Luca']['birth_date'] == '2025-01-10'
-    assert me['hub']['name'] == 'weHub' and me['password_login'] is False
+    assert me['hub']['name'] == 'Wombat' and me['password_login'] is False
     assert c.post('/api/family/people', json={'name': 'X'}).status_code == 409
     assert c.post('/api/family/invites').status_code == 409
-    # The iPhone key keeps working in weHub mode
+    # The iPhone key keeps working in Wombat mode
     t = ok(c.post('/api/account/tokens', json={'name': 'iPhone'}), 201)['token']
     assert client().get('/api/documents', headers={'Authorization': 'Bearer ' + t}).status_code == 200
 
 
-def test_existing_people_and_documents_are_kept(client, wehub, monkeypatch):
+def test_existing_people_and_documents_are_kept(client, wombat, monkeypatch):
     monkeypatch.setattr(hub, 'URL', '')
     monkeypatch.setattr(auth, 'PASSWORD_LOGIN', True)
     from conftest import Family
@@ -110,36 +110,36 @@ def test_existing_people_and_documents_are_kept(client, wehub, monkeypatch):
     me_person = f.me['people'][0]['id']
     doc_luca = f.upload(pdf_with_text(['Referto di Luca']), person_id=str(luca))['document_id']
     doc_me = f.upload(pdf_with_text(['Busta paga di Fil']), 'b.pdf', person_id=str(me_person))['document_id']
-    monkeypatch.setattr(hub, 'URL', 'http://wehub.test')
+    monkeypatch.setattr(hub, 'URL', 'http://wombat.test')
     monkeypatch.setattr(auth, 'PASSWORD_LOGIN', False)
     fil = user(10, 'Fil', 'fil@example.com')
-    wehub.users = {'fil@example.com': fil}
-    # weHub knows Luca from the import (local_id); Fil's person is matched through his account
-    family(wehub, local_id=f.me['family']['id'], members=[{**fil, 'role': 'admin'}],
+    wombat.users = {'fil@example.com': fil}
+    # Wombat knows Luca from the import (local_id); Fil's person is matched through his account
+    family(wombat, local_id=f.me['family']['id'], members=[{**fil, 'role': 'admin'}],
            people=[{'hub_id': 100, 'name': 'Fil', 'user_hub_id': 10},
                    {'hub_id': 102, 'name': 'Luca Rossi', 'kind': 'child', 'local_id': luca, 'user_hub_id': None}])
-    wehub.access = {10: [1]}
+    wombat.access = {10: [1]}
     c = client()
-    sign_in(c, wehub, 'fil@example.com')
+    sign_in(c, wombat, 'fil@example.com')
     me = ok(c.get('/api/me'))
     assert me['family']['id'] == f.me['family']['id']
     assert {p['id']: p['name'] for p in me['people']} == {me_person: 'Fil', luca: 'Luca Rossi'}
     assert ok(c.get(f'/api/documents/{doc_luca}'))['person_id'] == luca
     assert ok(c.get(f'/api/documents/{doc_me}'))['person_id'] == me_person
-    # Luca removed in weHub: his documents stay, about the whole family
-    family(wehub, version=2, local_id=f.me['family']['id'], members=[{**fil, 'role': 'admin'}],
+    # Luca removed in Wombat: his documents stay, about the whole family
+    family(wombat, version=2, local_id=f.me['family']['id'], members=[{**fil, 'role': 'admin'}],
            people=[{'hub_id': 100, 'name': 'Fil', 'user_hub_id': 10}])
     hub.sync_all()
     assert ok(c.get(f'/api/documents/{doc_luca}'))['person_id'] is None
     assert ok(c.get('/api/documents'))['total'] == 2
 
 
-def test_no_access(client, wehub):
-    wehub.users = {'tata@example.com': user(12, 'Tata', 'tata@example.com')}
-    assert 'login?error=' in sign_in(client(), wehub, 'tata@example.com')
+def test_no_access(client, wombat):
+    wombat.users = {'tata@example.com': user(12, 'Tata', 'tata@example.com')}
+    assert 'login?error=' in sign_in(client(), wombat, 'tata@example.com')
 
 
-def test_export_for_the_import(client, wehub, monkeypatch):
+def test_export_for_the_import(client, wombat, monkeypatch):
     monkeypatch.setattr(hub, 'URL', '')
     monkeypatch.setattr(auth, 'PASSWORD_LOGIN', True)
     c = client()
@@ -156,7 +156,7 @@ def merge(c, into, families, key=KEY):
     return c.post('/api/hub/merge', json={'into': into, 'families': families}, headers={'Authorization': 'Bearer ' + key})
 
 
-def test_merge_two_families_made_separately(client, wehub, monkeypatch):
+def test_merge_two_families_made_separately(client, wombat, monkeypatch):
     from conftest import Family
     monkeypatch.setattr(hub, 'URL', '')
     monkeypatch.setattr(auth, 'PASSWORD_LOGIN', True)
@@ -182,16 +182,16 @@ def test_merge_two_families_made_separately(client, wehub, monkeypatch):
     assert ok(sara.get('/api/documents?q=referto'))['total'] == 1
 
 
-# ---------- Links with doTrack and eaTrack (links.py) ----------
+# ---------- Links with Kooka and Wallaby (links.py) ----------
 
-def _hub_family(client, wehub):
+def _hub_family(client, wombat):
     fil = user(10, 'Fil', 'fil@example.com')
-    wehub.users = {'fil@example.com': fil}
-    family(wehub, members=[{**fil, 'role': 'admin'}],
+    wombat.users = {'fil@example.com': fil}
+    family(wombat, members=[{**fil, 'role': 'admin'}],
            people=[{'hub_id': 100, 'name': 'Fil', 'user_hub_id': 10}, {'hub_id': 102, 'name': 'Luca', 'kind': 'child', 'user_hub_id': None}])
-    wehub.access = {10: [1]}
+    wombat.access = {10: [1]}
     c = client()
-    sign_in(c, wehub, 'fil@example.com')
+    sign_in(c, wombat, 'fil@example.com')
     return c
 
 
@@ -203,8 +203,8 @@ def _upload(c, text='Carta di identità Luca'):
     return ok(c.get(f"/api/imports/{r['id']}"))['document_id']
 
 
-class DoTrack:
-    """Stands in for weHub → doTrack."""
+class Kooka:
+    """Stands in for Wombat → Kooka."""
 
     def __init__(self):
         self.calls, self.down, self.answer = [], False, {'item_id': 5, 'created': True}
@@ -219,56 +219,56 @@ class DoTrack:
         return r
 
 
-def test_a_document_keeps_its_deadline_in_dotrack(client, wehub, monkeypatch):
+def test_a_document_keeps_its_deadline_in_kooka(client, wombat, monkeypatch):
     import requests
     import links
     monkeypatch.setattr(auth, 'BASE_URL', 'https://pa.example')
-    c = _hub_family(client, wehub)
-    dt = DoTrack()
+    c = _hub_family(client, wombat)
+    dt = Kooka()
     monkeypatch.setattr(requests, 'request', dt)
     doc = _upload(c)
     luca = next(p['id'] for p in ok(c.get('/api/me'))['people'] if p['name'] == 'Luca')
     ok(c.put(f'/api/documents/{doc}', json={'doc_type': "Carta d'identità", 'person_id': luca, 'expiry_date': '2031-03-04'}))
-    assert dt.calls == []                                   # not asked for: doTrack is left alone
-    d = ok(c.put(f'/api/documents/{doc}', json={'dotrack': True, 'dotrack_remind': 60}))
-    assert (d['dotrack'], d['dotrack_state'], d['dotrack_item']) == (1, 'sent', 5)
+    assert dt.calls == []                                   # not asked for: Kooka is left alone
+    d = ok(c.put(f'/api/documents/{doc}', json={'kooka': True, 'kooka_remind': 60}))
+    assert (d['kooka'], d['kooka_state'], d['kooka_item']) == (1, 'sent', 5)
     method, path, payload = dt.calls[-1]
-    assert (method, path) == ('PUT', f'/deadlines/patrack-{doc}')
+    assert (method, path) == ('PUT', f'/deadlines/pelican-{doc}')
     assert payload['title'] == "Carta d'identità" and payload['due_date'] == '2031-03-04' and payload['remind_days'] == 60
     assert payload['person_hub_id'] == 102 and payload['url'] == f'https://pa.example/#/doc/{doc}' and payload['category'] is None
     ok(c.put(f'/api/documents/{doc}', json={'notes': 'nel cassetto'}))
-    assert len(dt.calls) == 1                               # nothing doTrack shows changed
-    # doTrack down: waits, then goes on the next round
+    assert len(dt.calls) == 1                               # nothing Kooka shows changed
+    # Kooka down: waits, then goes on the next round
     dt.down = True
-    assert ok(c.put(f'/api/documents/{doc}', json={'expiry_date': '2041-03-04'}))['dotrack_state'] == 'pending'
+    assert ok(c.put(f'/api/documents/{doc}', json={'expiry_date': '2041-03-04'}))['kooka_state'] == 'pending'
     dt.down = False
     links.push_pending()
-    assert dt.calls[-1][2]['due_date'] == '2041-03-04' and ok(c.get(f'/api/documents/{doc}'))['dotrack_state'] == 'sent'
+    assert dt.calls[-1][2]['due_date'] == '2041-03-04' and ok(c.get(f'/api/documents/{doc}'))['kooka_state'] == 'sent'
     # To the trash: the deadline goes too; restored: back
     ok(c.delete(f'/api/documents/{doc}'))
     links.push_pending()
-    assert dt.calls[-1][:2] == ('DELETE', f'/deadlines/patrack-{doc}')
-    assert ok(c.get(f'/api/documents/{doc}'))['dotrack_item'] is None
+    assert dt.calls[-1][:2] == ('DELETE', f'/deadlines/pelican-{doc}')
+    assert ok(c.get(f'/api/documents/{doc}'))['kooka_item'] is None
     ok(c.post(f'/api/documents/{doc}/restore'))
     assert dt.calls[-1][0] == 'PUT'
-    # Turned off: removed; deleted by someone in doTrack: turned off here
-    ok(c.put(f'/api/documents/{doc}', json={'dotrack': False}))
+    # Turned off: removed; deleted by someone in Kooka: turned off here
+    ok(c.put(f'/api/documents/{doc}', json={'kooka': False}))
     assert dt.calls[-1][0] == 'DELETE'
     dt.answer = {'item_id': 5, 'deleted': True}
-    d = ok(c.put(f'/api/documents/{doc}', json={'dotrack': True}))
-    assert (d['dotrack'], d['dotrack_state']) == (0, None)
-    assert c.put(f'/api/documents/{doc}', json={'dotrack_remind': 'x'}).status_code == 400
+    d = ok(c.put(f'/api/documents/{doc}', json={'kooka': True}))
+    assert (d['kooka'], d['kooka_state']) == (0, None)
+    assert c.put(f'/api/documents/{doc}', json={'kooka_remind': 'x'}).status_code == 400
 
 
-def test_documents_from_dotrack_and_plans_for_eatrack(client, wehub, monkeypatch):
+def test_documents_from_kooka_and_plans_for_wallaby(client, wombat, monkeypatch):
     import base64
     from conftest import run_queue
     monkeypatch.setattr(auth, 'BASE_URL', 'https://pa.example')
-    c = _hub_family(client, wehub)
+    c = _hub_family(client, wombat)
     H = {'Authorization': 'Bearer ' + KEY}
     pdf = pdf_with_text(['Passaporto Luca'])
     body = {'file_name': 'passaporto.pdf', 'content': base64.b64encode(pdf).decode(), 'title': 'Passaporto Luca',
-            'expiry_date': '2030-05-01', 'remind_days': 90, 'category': 'identity', 'dotrack_item': 8, 'person_hub_id': 102}
+            'expiry_date': '2030-05-01', 'remind_days': 90, 'category': 'identity', 'kooka_item': 8, 'person_hub_id': 102}
     post = lambda level='full', **extra: client().post(f'/api/hub/families/1/documents?user=10&level={level}', headers=H,  # noqa: E731
                                                         json={**body, **extra})
     assert post(level='').status_code == 403 and post(level='limited').status_code == 403
@@ -277,19 +277,19 @@ def test_documents_from_dotrack_and_plans_for_eatrack(client, wehub, monkeypatch
     assert r['url'] == f"https://pa.example/#/doc/{r['id']}" and not r['duplicate']
     run_queue()
     d = ok(c.get(f"/api/documents/{r['id']}"))
-    assert (d['title'], d['expiry_date'], d['category'], d['dotrack'], d['dotrack_remind'], d['dotrack_state'], d['dotrack_item']) == \
+    assert (d['title'], d['expiry_date'], d['category'], d['kooka'], d['kooka_remind'], d['kooka_state'], d['kooka_item']) == \
         ('Passaporto Luca', '2030-05-01', 'identity', 1, 90, 'sent', 8)
     assert next(p['name'] for p in ok(c.get('/api/me'))['people'] if p['id'] == d['person_id']) == 'Luca'
-    assert d['origin']['source'] == 'dotrack'
+    assert d['origin']['source'] == 'kooka'
     # The same file from another deadline: refused; from the same one: the same document
-    assert post(dotrack_item=9).status_code == 409
+    assert post(kooka_item=9).status_code == 409
     assert ok(post(), 201) == {**r, 'duplicate': True}
-    # eaTrack: the paediatrician's plans of a child
+    # Wallaby: the paediatrician's plans of a child
     plans = lambda child=102, level='full': client().get(f'/api/hub/families/1/plans?user=10&child={child}&level={level}', headers=H)  # noqa: E731
     assert ok(plans()) == []
     plan = _upload(c, 'Piano svezzamento settimana 3: zucchine, carote')
     luca = d['person_id']
-    ok(c.put(f'/api/documents/{plan}', json={'person_id': luca, 'eatrack_plan': True, 'doc_date': '2026-11-10', 'doc_type': 'Piano'}))
+    ok(c.put(f'/api/documents/{plan}', json={'person_id': luca, 'wallaby_plan': True, 'doc_date': '2026-11-10', 'doc_type': 'Piano'}))
     got = ok(plans())
     assert [p['id'] for p in got] == [plan] and 'zucchine' in got[0]['excerpt'] and got[0]['url'].endswith(f'/doc/{plan}')
     assert ok(plans(child=100)) == [] and plans(level='limited').status_code == 403

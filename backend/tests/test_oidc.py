@@ -85,7 +85,7 @@ def test_invalid_callback(client, idp):
 
 
 def test_closed_sign_up_blocks_new_oidc_users(client, idp, monkeypatch):
-    """With PATRACK_SIGNUP=closed an unknown external account cannot create a user."""
+    """With PELICAN_SIGNUP=closed an unknown external account cannot create a user."""
     sign_up(client())
     monkeypatch.setattr(auth, 'SIGNUP_OPEN', False)
     stranger = client()

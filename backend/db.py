@@ -4,8 +4,11 @@ import sqlite3
 import sys
 from contextlib import contextmanager
 
-DATA_DIR = os.environ.get('PATRACK_DATA', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
-DB_PATH = os.path.join(DATA_DIR, 'patrack.db')
+from famkit import legacy   # first: variables with the old names (PATRACK_*) still work for a while
+
+DATA_DIR = os.environ.get('PELICAN_DATA', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
+DB_PATH = os.path.join(DATA_DIR, 'pelican.db')
+legacy.move_file(os.path.join(DATA_DIR, 'patrack.db'), DB_PATH)   # the app was paTrack until 2026-11
 
 SCHEMA_VERSION = 1
 
@@ -16,7 +19,7 @@ ROLES = ['admin', 'member']
 DOC_STATUSES = ['processing', 'ready', 'review']
 # queued → processing → done | error; duplicate = same file already in the archive (nothing was stored)
 IMPORT_STATUSES = ['queued', 'processing', 'done', 'error', 'duplicate']
-IMPORT_SOURCES = ['upload', 'scan', 'shortcut', 'email', 'api', 'dotrack']
+IMPORT_SOURCES = ['upload', 'scan', 'shortcut', 'email', 'api', 'kooka']
 TRASH_DAYS = 30
 
 SCHEMA = '''
@@ -211,19 +214,20 @@ def init_db():
     os.makedirs(DATA_DIR, exist_ok=True)
     conn = connect()
     try:
+        legacy.rename_schema(conn)      # dotrack_remind → kooka_remind, eatrack_plan → wallaby_plan…
         conn.executescript(SCHEMA)
-        # weHub link (see famkit/hub.py): which weHub family/user/person each row is, NULL = not managed there
+        # Wombat link (see famkit/hub.py): which Wombat family/user/person each row is, NULL = not managed there
         for table, column in (('families', 'hub_id'), ('families', 'hub_version'), ('users', 'hub_id'), ('people', 'hub_id')):
             if column not in {r[1] for r in conn.execute(f'PRAGMA table_info({table})')}:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} INTEGER')
         # Links with the other family apps (see links.py)
-        for column, definition in (('dotrack', 'INTEGER NOT NULL DEFAULT 0'),   # keep a doTrack deadline for the expiry
-                                   ('dotrack_remind', 'INTEGER'),               # its reminder, N days before (NULL = none)
-                                   ('dotrack_state', 'TEXT'),                   # pending | sent | error | NULL
-                                   ('dotrack_item', 'INTEGER'),                 # the deadline in doTrack
-                                   ('dotrack_error', 'TEXT'),                   # why doTrack said no
-                                   ('dotrack_by', 'INTEGER'),                   # who turned it on (doTrack is asked as them)
-                                   ('eatrack_plan', 'INTEGER NOT NULL DEFAULT 0'),  # the paediatrician's plan, shown in eaTrack
+        for column, definition in (('kooka', 'INTEGER NOT NULL DEFAULT 0'),   # keep a Kooka deadline for the expiry
+                                   ('kooka_remind', 'INTEGER'),               # its reminder, N days before (NULL = none)
+                                   ('kooka_state', 'TEXT'),                   # pending | sent | error | NULL
+                                   ('kooka_item', 'INTEGER'),                 # the deadline in Kooka
+                                   ('kooka_error', 'TEXT'),                   # why Kooka said no
+                                   ('kooka_by', 'INTEGER'),                   # who turned it on (Kooka is asked as them)
+                                   ('wallaby_plan', 'INTEGER NOT NULL DEFAULT 0'),  # the paediatrician's plan, shown in Wallaby
                                    ('tax_kind', 'TEXT'),
                                    ('tax_receipt', 'INTEGER')):                 # in the receipts' PDF: 1 yes, 0 no, NULL = proposed                       # tax return: a kind, 'none', NULL = proposed
             if column not in {r[1] for r in conn.execute('PRAGMA table_info(documents)')}:
@@ -242,6 +246,6 @@ def init_db():
         conn.close()
 
 
-# The shared code (famkit: mail, backups, weHub link, sign-in) reads PATRACK_* variables and uses this module
+# The shared code (famkit: mail, backups, Wombat link, sign-in) reads PELICAN_* variables and uses this module
 import famkit  # noqa: E402
-famkit.configure('PATRACK', 'paTrack', sys.modules[__name__])
+famkit.configure('PELICAN', 'Pelican', sys.modules[__name__])

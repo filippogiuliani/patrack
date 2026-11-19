@@ -25,7 +25,7 @@ def test_two_step_verification(family, client):
     c = family.c
     assert ok(c.get('/api/account/2fa')) == {'enabled': False, 'recovery_left': 0}
     s = ok(c.post('/api/account/2fa/setup'))
-    assert s['uri'].startswith('otpauth://totp/paTrack:') and s['qr'].startswith('data:image/svg+xml;base64,')
+    assert s['uri'].startswith('otpauth://totp/Pelican:') and s['qr'].startswith('data:image/svg+xml;base64,')
     secret = s['secret'].replace(' ', '')
     assert c.post('/api/account/2fa/enable', json={'code': '000000'}).status_code == 400
     r = ok(c.post('/api/account/2fa/enable', json={'code': security.totp(secret)}))

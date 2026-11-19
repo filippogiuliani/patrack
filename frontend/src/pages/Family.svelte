@@ -65,7 +65,7 @@
   async function shareInvite() {
     const text = t('invite.message', { family: family.name });
     if (navigator.share) {
-      try { await navigator.share({ title: 'paTrack', text, url: invite.link }); return; } catch { /* cancelled */ }
+      try { await navigator.share({ title: 'Pelican', text, url: invite.link }); return; } catch { /* cancelled */ }
     }
     copy(invite.link);
   }
@@ -161,7 +161,7 @@
 {#if family && user}
 <div class="layout">
   {#if app.me.hub}
-  <!-- Managed in weHub -->
+  <!-- Managed in Wombat -->
   <section class="card stack">
     <h2>{t('family.family')}</h2>
     <p><b>{family.name}</b></p>

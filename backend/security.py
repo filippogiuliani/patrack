@@ -22,7 +22,7 @@ from common import body, text
 
 bp = Blueprint('security', __name__)
 
-ISSUER = 'paTrack'
+ISSUER = 'Pelican'
 RECOVERY_CODES = 10
 
 

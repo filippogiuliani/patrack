@@ -1,4 +1,4 @@
-"""paTrack's part of the weHub link (the rest is famkit.hub): who this app's people are, what happens when a
+"""Pelican's part of the Wombat link (the rest is famkit.hub): who this app's people are, what happens when a
 member leaves, how two families made separately are merged. Registered in app.py with hub.use(hub_hooks)."""
 import db
 from famkit import hub
@@ -12,7 +12,7 @@ def bump(conn, family_id):
 
 
 def apply_people(conn, family_id, snap):
-    """Every weHub person is a paTrack person; members keep the link to their account. Someone removed in weHub:
+    """Every Wombat person is a Pelican person; members keep the link to their account. Someone removed in Wombat:
     their documents become "the whole family"."""
     seen = set()
     for p in snap['people']:
@@ -30,7 +30,7 @@ def apply_people(conn, family_id, snap):
         if r:
             pid = r['id']
             if uid:
-                # Another row already stands for this member (made before weHub): merge it into this one
+                # Another row already stands for this member (made before Wombat): merge it into this one
                 other = conn.execute('SELECT id FROM people WHERE family_id = ? AND user_id = ? AND id != ?',
                                      (family_id, uid, pid)).fetchone()
                 if other:
@@ -63,7 +63,7 @@ def on_member_removed(conn, family_id, user_id):
 
 
 def merge_data(conn, src, dst, report):
-    """paTrack: the same person (member or same name) becomes one; documents and the import queue move. A document
+    """Pelican: the same person (member or same name) becomes one; documents and the import queue move. A document
     whose identical file is already in the destination goes to the trash (recoverable for 30 days)."""
     for p in conn.execute('SELECT * FROM people WHERE family_id = ?', (src,)).fetchall():
         t = None

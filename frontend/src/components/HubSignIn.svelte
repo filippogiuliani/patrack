@@ -1,5 +1,5 @@
 <script>
-  // Sign-in when the family is managed in weHub: one button to the provider (Pocket ID), followed automatically
+  // Sign-in when the family is managed in Wombat: one button to the provider (Pocket ID), followed automatically
   // unless we just came back with an error (so a refusal never loops).
   import { app } from '../lib/store.svelte.js';
   import { t } from '../lib/i18n.svelte.js';

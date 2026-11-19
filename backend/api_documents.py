@@ -18,7 +18,7 @@ bp = Blueprint('documents', __name__)
 
 LIST_FIELDS = '''d.id, d.title, d.category, d.doc_type, d.person_id, d.doc_date, d.expiry_date, d.amount_cents, d.issuer,
                  d.status, d.review_reason, d.mime, d.size, d.pages, d.file_name, d.preview_name IS NOT NULL AS has_preview,
-                 d.created_at, d.updated_at, d.deleted_at, d.dotrack, d.dotrack_state, d.eatrack_plan'''
+                 d.created_at, d.updated_at, d.deleted_at, d.kooka, d.kooka_state, d.wallaby_plan'''
 SORTS = {'date': 'COALESCE(d.doc_date, date(d.created_at)) DESC, d.id DESC', 'added': 'd.id DESC',
          'expiry': 'd.expiry_date IS NULL, d.expiry_date, d.id DESC', 'title': 'd.title COLLATE NOCASE, d.id DESC'}
 EXPIRY_SOON_DAYS = 60
@@ -203,20 +203,20 @@ def update_document(doc_id):
                 fields[k] = valid_date(d[k], k) if d[k] else None
         if 'amount' in d:
             fields['amount_cents'] = _amount(d['amount'])
-        if 'dotrack' in d:
-            fields['dotrack'] = 1 if d['dotrack'] else 0
-            if d['dotrack'] and not cur['dotrack']:
-                fields['dotrack_by'] = g.user['id']
-        if 'dotrack_remind' in d:
-            r = d['dotrack_remind']
+        if 'kooka' in d:
+            fields['kooka'] = 1 if d['kooka'] else 0
+            if d['kooka'] and not cur['kooka']:
+                fields['kooka_by'] = g.user['id']
+        if 'kooka_remind' in d:
+            r = d['kooka_remind']
             if r in (None, ''):
-                fields['dotrack_remind'] = None
+                fields['kooka_remind'] = None
             elif isinstance(r, int) and 0 <= r <= 365:
-                fields['dotrack_remind'] = r
+                fields['kooka_remind'] = r
             else:
                 abort(400, 'Invalid reminder')
-        if 'eatrack_plan' in d:
-            fields['eatrack_plan'] = 1 if d['eatrack_plan'] else 0
+        if 'wallaby_plan' in d:
+            fields['wallaby_plan'] = 1 if d['wallaby_plan'] else 0
         if 'tax_kind' in d:
             if d['tax_kind'] not in (None, '', api_tax.NONE, *api_tax.KINDS):
                 abort(400, 'Invalid kind')
@@ -227,9 +227,9 @@ def update_document(doc_id):
             sets = ', '.join(f'{k} = ?' for k in fields)
             conn.execute(f"UPDATE documents SET {sets}, updated_at = datetime('now') WHERE id = ?", (*fields.values(), doc_id))
             search.index(conn, conn.execute('SELECT * FROM documents WHERE id = ?', (doc_id,)).fetchone())
-            # doTrack shows the title/type, the date, the person and the reminder: tell it when one of them changed
-            shown = ('title', 'doc_type', 'person_id', 'expiry_date', 'category', 'dotrack', 'dotrack_remind')
-            sync = (fields.get('dotrack', cur['dotrack']) or cur['dotrack_item']) and \
+            # Kooka shows the title/type, the date, the person and the reminder: tell it when one of them changed
+            shown = ('title', 'doc_type', 'person_id', 'expiry_date', 'category', 'kooka', 'kooka_remind')
+            sync = (fields.get('kooka', cur['kooka']) or cur['kooka_item']) and \
                 any(k in fields and fields[k] != cur[k] for k in shown)
             if sync:
                 links.mark(conn, doc_id)
@@ -261,10 +261,10 @@ def delete_document(doc_id):
         d = _doc(conn, doc_id)
         if request.args.get('permanent') != '1':
             conn.execute("UPDATE documents SET deleted_at = datetime('now') WHERE id = ?", (doc_id,))
-            if d['dotrack_item']:
-                links.mark(conn, doc_id)   # its deadline goes away in doTrack too
+            if d['kooka_item']:
+                links.mark(conn, doc_id)   # its deadline goes away in Kooka too
             db.bump(conn, g.family_id)
-            if d['dotrack_item']:
+            if d['kooka_item']:
                 links.wake()
             return jsonify(ok=True)
         if not d['deleted_at']:
@@ -278,10 +278,10 @@ def restore(doc_id):
     with db.transaction() as conn:
         d = _doc(conn, doc_id)
         conn.execute('UPDATE documents SET deleted_at = NULL WHERE id = ?', (doc_id,))
-        if d['dotrack']:
-            links.mark(conn, doc_id)   # back from the trash: its deadline comes back (a new one) in doTrack
+        if d['kooka']:
+            links.mark(conn, doc_id)   # back from the trash: its deadline comes back (a new one) in Kooka
         db.bump(conn, g.family_id)
-    if d['dotrack']:
+    if d['kooka']:
         links.push_deadline(doc_id)
     return get_document(doc_id)
 

@@ -5,10 +5,10 @@ import re
 import sys
 import tempfile
 
-# Modules read PATRACK_DATA on import: point it at a throwaway directory right away,
+# Modules read PELICAN_DATA on import: point it at a throwaway directory right away,
 # so no test can ever touch backend/data or a real data directory.
-os.environ['PATRACK_DATA'] = tempfile.mkdtemp(prefix='patrack-test-')
-for k in [k for k in os.environ if k.startswith('PATRACK_') and k != 'PATRACK_DATA']:
+os.environ['PELICAN_DATA'] = tempfile.mkdtemp(prefix='pelican-test-')
+for k in [k for k in os.environ if k.startswith('PELICAN_') and k != 'PELICAN_DATA']:
     del os.environ[k]
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -36,7 +36,7 @@ def outbox(monkeypatch):
 @pytest.fixture
 def app(tmp_path, monkeypatch, outbox):
     monkeypatch.setattr(db, 'DATA_DIR', str(tmp_path))
-    monkeypatch.setattr(db, 'DB_PATH', str(tmp_path / 'patrack.db'))
+    monkeypatch.setattr(db, 'DB_PATH', str(tmp_path / 'pelican.db'))
     monkeypatch.setattr(backup, 'BACKUP_DIR', str(tmp_path / 'backups'))
     storage.reset_key_cache()
     import mailin

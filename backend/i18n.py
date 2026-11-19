@@ -26,9 +26,9 @@ def language():
 
 
 IT = {
-    'The family is managed in weHub': 'La famiglia si gestisce in weHub',
-    'You cannot use this app: ask the family admin in weHub': "Non puoi usare quest'app: chiedi all'amministratore della famiglia in weHub",
-    'weHub is not reachable, please try again in a moment': 'weHub non è raggiungibile, riprova tra poco',
+    'The family is managed in Wombat': 'La famiglia si gestisce in Wombat',
+    'You cannot use this app: ask the family admin in Wombat': "Non puoi usare quest'app: chiedi all'amministratore della famiglia in Wombat",
+    'Wombat is not reachable, please try again in a moment': 'Wombat non è raggiungibile, riprova tra poco',
     'To sign up you must accept the privacy notice': "Per registrarti devi accettare l'informativa privacy",
     "You're the only member: to delete the family, delete your account": "Sei l'unico membro: per eliminare la famiglia elimina l'account",
     'Sign in or sign up to accept': 'Accedi o registrati per accettare',
@@ -86,9 +86,9 @@ IT = {
     'missing file': 'file mancante',
     'Invalid file': 'File non valido',
     'The file could not be archived': 'Non è stato possibile archiviare il file',
-    'This document is already in paTrack with its own deadline': 'Questo documento è già in paTrack con la sua scadenza',
-    'This family is not linked to weHub': 'Questa famiglia non è collegata a weHub',
-    'You do not use paTrack in this family': 'Non usi paTrack in questa famiglia',
+    'This document is already in Pelican with its own deadline': 'Questo documento è già in Pelican con la sua scadenza',
+    'This family is not linked to Wombat': 'Questa famiglia non è collegata a Wombat',
+    'You do not use Pelican in this family': 'Non usi Pelican in questa famiglia',
     'Already being processed': 'Già in elaborazione',
     'Move it to the trash first': 'Spostalo prima nel cestino',
     'Not a duplicate': 'Non è un duplicato',
@@ -166,18 +166,18 @@ def reason(key, lang=None):
 
 EMAILS = {
     'verify': {
-        'it': ('Conferma il tuo indirizzo email – paTrack',
+        'it': ('Conferma il tuo indirizzo email – Pelican',
                'Ciao!\n\nConferma il tuo indirizzo email aprendo questo link:\n{link}\n\n'
-               'Il link vale 3 giorni. Se non ti sei registrato su paTrack ignora questo messaggio.'),
-        'en': ('Confirm your email address – paTrack',
+               'Il link vale 3 giorni. Se non ti sei registrato su Pelican ignora questo messaggio.'),
+        'en': ('Confirm your email address – Pelican',
                'Hi!\n\nConfirm your email address by opening this link:\n{link}\n\n'
-               "The link is valid for 3 days. If you didn't sign up for paTrack, ignore this message."),
+               "The link is valid for 3 days. If you didn't sign up for Pelican, ignore this message."),
     },
     'reset': {
-        'it': ('Reimposta la password – paTrack',
+        'it': ('Reimposta la password – Pelican',
                'Per scegliere una nuova password apri questo link (vale 2 ore):\n{link}\n\n'
                'Se non hai chiesto tu il cambio password ignora questo messaggio.'),
-        'en': ('Reset your password – paTrack',
+        'en': ('Reset your password – Pelican',
                'To choose a new password open this link (valid for 2 hours):\n{link}\n\n'
                "If you didn't request a password change, ignore this message."),
     },
@@ -185,15 +185,15 @@ EMAILS = {
 
 
 EMAILS['mail_summary'] = {
-    'it': ('paTrack: {subject}', 'Ecco cosa è successo agli allegati della tua email "{subject}":\n\n{lines}\n\n{link}'),
-    'en': ('paTrack: {subject}', 'Here is what happened to the attachments of your email "{subject}":\n\n{lines}\n\n{link}'),
+    'it': ('Pelican: {subject}', 'Ecco cosa è successo agli allegati della tua email "{subject}":\n\n{lines}\n\n{link}'),
+    'en': ('Pelican: {subject}', 'Here is what happened to the attachments of your email "{subject}":\n\n{lines}\n\n{link}'),
 }
 EMAILS['mail_rejected'] = {
-    'it': ('paTrack: email non importata',
+    'it': ('Pelican: email non importata',
            'Abbiamo ricevuto un\'email dal tuo indirizzo ("{subject}") ma il server di posta non ha potuto verificare che '
            'sia partita davvero da te (SPF/DKIM), quindi non l\'abbiamo importata.\n\nSe l\'hai mandata tu, '
            'carica gli allegati dall\'app. Se non sei stato tu, qualcuno sta usando il tuo indirizzo: non serve fare altro.'),
-    'en': ('paTrack: email not imported',
+    'en': ('Pelican: email not imported',
            'We received an email from your address ("{subject}") but the mail server could not verify that it really came '
            'from you (SPF/DKIM), so it was not imported.\n\nIf you sent it, upload the attachments from the app. '
            'If you did not, someone is using your address: nothing else to do.'),
